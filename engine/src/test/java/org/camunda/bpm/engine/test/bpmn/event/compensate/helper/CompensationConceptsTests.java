@@ -18,12 +18,12 @@ import org.camunda.bpm.model.bpmn.instance.camunda.CamundaInputParameter;
 import org.junit.After;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class CompensationConceptsTests extends PluggableProcessEngineTest {
 
@@ -139,6 +139,33 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         completeTask("Cancel Hotel");
         completeTask("Cancel Car");
         testRule.assertProcessEnded(processInstanceId);
+
+
+        processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
+        historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
+        // again same start time as startEvent, hence flaky
+        //assertEquals("bookFlight", historicActivityInstance.get(17).getActivityId());
+        completeTask("Book Flight");
+        historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
+        assertEquals("bookHotel", historicActivityInstance.get(18).getActivityId());
+        assertEquals(null, historicActivityInstance.get(18).getEndTime());
+        completeTask("Book Hotel");
+        historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
+        assertEquals("bookCar", historicActivityInstance.get(19).getActivityId());
+        assertEquals(null, historicActivityInstance.get(19).getEndTime());
+       // testRule.assertProcessEnded(processInstanceId);
+
+        // learning -> Every task is started as soon as enable, but as it's a user task I have to complete it manually.
+        ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().processInstanceId(processInstanceId).singleResult();
+        assertEquals(false, processInstance.isEnded());
+        assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("bookCar").singleResult().getTaskState());
+        completeTask("Book Car");
+        List<HistoricActivityInstance> completedBookCarTasks = historyService.createHistoricActivityInstanceQuery().activityName("Book Car").list();
+        assertNotNull(completedBookCarTasks.get(completedBookCarTasks.size() - 1).getEndTime());
+
+
+        // TODO kann ich auch executen, ohne alles einzeln zu triggern? Was wenn es keine user tasks sind?
+
     }
 
 /*
