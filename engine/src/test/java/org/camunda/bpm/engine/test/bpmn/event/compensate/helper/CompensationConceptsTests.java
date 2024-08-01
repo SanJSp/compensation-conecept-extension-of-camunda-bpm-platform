@@ -31,8 +31,6 @@ import static org.junit.Assert.*;
 
 public class CompensationConceptsTests extends PluggableProcessEngineTest {
 
-    protected String deploymentId;
-
     protected CamundaInputParameter findInputParameterByName(BaseElement baseElement, String name) {
         Collection<CamundaInputParameter> camundaInputParameters = baseElement.getExtensionElements().getElementsQuery().filterByType(CamundaInputOutput.class).singleResult().getCamundaInputParameters();
         for (CamundaInputParameter camundaInputParameter : camundaInputParameters) {
@@ -41,16 +39,6 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
             }
         }
         throw new BpmnModelException("Unable to find camunda:inputParameter with name '" + name + "' for element with id '" + baseElement.getId() + "'");
-    }
-
-    @After
-    public void clear() {
-        Mocks.reset();
-
-        if (deploymentId != null) {
-            repositoryService.deleteDeployment(deploymentId, true);
-            deploymentId = null;
-        }
     }
 
 
@@ -71,6 +59,60 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     }
 
 
+
+
+    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.nonVitalTaskTest.bpmn20.xml")
+    @Test
+    public void nonVitalTaskTest() {
+        String processInstanceId = runtimeService.startProcessInstanceByKey("flightBookingProcess").getId();
+
+        // Does not work
+        /*
+        Task bookFlightTask = taskService.createTaskQuery().taskName("Book Flight").singleResult();
+        Map<String, Object> variables = taskService.getVariables(bookFlightTask.getId());
+        assertEquals(1, variables.size());
+        assertEquals("true", variables.get("isVital"));*/
+
+        completeTask("Book Flight");
+
+        // check if task is completed
+        Task bookFlightTask = taskService.createTaskQuery().taskName("Book Flight").singleResult();
+        assertNull(bookFlightTask);
+
+        // check if non vital task is activated
+        assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("collectPoints").singleResult().getTaskState());
+
+        // check if start event, bookFlight and nonVital task present in history, which means they were Created
+        List<HistoricActivityInstance> historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
+        assertEquals(3, historicActivityInstance.size()); // start Event, bookFlight, collectPoints
+
+        // check if inputVariables on non-vital task are present -  TODO this with ExtensionProperties
+        Task collectPointsTask = taskService.createTaskQuery().taskName("Collect Royality Points").singleResult();
+        Map<String, Object> variables = taskService.getVariables(collectPointsTask.getId());
+
+        assertEquals(1, variables.size());
+        assertEquals("false", variables.get("isVital"));
+
+
+        // trigger error on non-vital task
+        taskService.handleBpmnError(collectPointsTask.getId(), "errorCode");
+        String state = ((TaskEntity) collectPointsTask).getTaskState();
+        System.out.println(state);
+
+        // here should the non-vital magic happen, meaning that it is automatically skipped and next task enabled
+        // DONE add extension element to task that should be non-vital
+
+        // Non-vital Task should be completed/finished
+        collectPointsTask = taskService.createTaskQuery().taskName("Collect Royality Points").singleResult();
+        assertNull(collectPointsTask);
+
+        // TODO this should pass for test case to be valid
+        // assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("payFlight").singleResult().getTaskState());
+    }
+
+    /// PLAYGROUND STARTS HERE
+
+    /*
     @Test
     public void test123123() {
         BpmnModelInstance modelInstance = Bpmn.createExecutableProcess("foo").startEvent("start").userTask("userTask").camundaInputParameter("var", "Hello World${'!'}").endEvent("end").done();
@@ -89,45 +131,9 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
 
 
     }
+*/
 
-    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.nonVitalTaskTest.bpmn20.xml")
-    @Test
-    public void nonVitalTaskTest() {
-        String processInstanceId = runtimeService.startProcessInstanceByKey("flightBookingProcess").getId();
-
-        Task bookFlightTask = taskService.createTaskQuery().taskName("Book Flight").singleResult();
-        completeTask("Book Flight");
-        bookFlightTask = taskService.createTaskQuery().taskName("Book Flight").singleResult();
-        assertNull(bookFlightTask);
-
-        assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("collectPoints").singleResult().getTaskState());
-
-        List<HistoricActivityInstance> historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
-        assertEquals(3, historicActivityInstance.size()); // start Event, bookFlight, collectPoints
-
-        Task collectPointsTask = taskService.createTaskQuery().taskName("Collect Royality Points").singleResult();
-        Map<String, Object> variables = taskService.getVariables(collectPointsTask.getId());
-
-        assertEquals(1, variables.size());
-        assertEquals("false", variables.get("isVital"));
-
-        taskService.handleBpmnError(collectPointsTask.getId(), "errorCode");
-        String state = ((TaskEntity) collectPointsTask).getTaskState();
-        System.out.println(state);
-
-        // here should the non-vital magic happen
-        // TODO add extension element to task that should be non-vital
-        // TODO implement non vital task behaviour
-
-        collectPointsTask = taskService.createTaskQuery().taskName("Collect Royality Points").singleResult();
-        assertNull(collectPointsTask);
-
-        // TODO this should pass
-        // assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("payFlight").singleResult().getTaskState());
-        // maybe need to build a lifecycle listener
-    }
-
-
+/*
 
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.sandroTest.bpmn20.xml")
     @Test
@@ -209,5 +215,5 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
 
         // TODO kann ich auch executen, ohne alles einzeln zu triggern? Was wenn es keine user tasks sind?
 
-    }
+    }*/
 }

@@ -12,6 +12,11 @@
 		</bpmn:endEvent>
 		<bpmn:sequenceFlow id="Flow_1ru4mtr" sourceRef="payFlight" targetRef="endEvent" />
 		<bpmn:userTask id="bookFlight" name="Book Flight">
+			<bpmn:extensionElements>
+				<camunda:properties>
+					<camunda:property name="isVital" value="true" />
+				</camunda:properties>
+			</bpmn:extensionElements>
 			<bpmn:incoming>Flow_05qb4z2</bpmn:incoming>
 			<bpmn:outgoing>Flow_0p6c4rw</bpmn:outgoing>
 		</bpmn:userTask>
