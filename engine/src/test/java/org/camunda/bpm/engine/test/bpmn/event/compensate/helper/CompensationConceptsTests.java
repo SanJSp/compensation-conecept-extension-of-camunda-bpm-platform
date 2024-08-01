@@ -1,10 +1,15 @@
 package org.camunda.bpm.engine.test.bpmn.event.compensate.helper;
 
 import org.assertj.core.api.Assertions;
+import org.camunda.bpm.engine.filter.Filter;
 import org.camunda.bpm.engine.history.HistoricActivityInstance;
+import org.camunda.bpm.engine.impl.TaskQueryImpl;
+import org.camunda.bpm.engine.impl.TaskQueryVariableValue;
+import org.camunda.bpm.engine.impl.persistence.entity.TaskEntity;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.runtime.VariableInstance;
 import org.camunda.bpm.engine.task.Task;
+import org.camunda.bpm.engine.task.TaskQuery;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.mock.Mocks;
 import org.camunda.bpm.engine.test.util.PluggableProcessEngineTest;
@@ -12,16 +17,15 @@ import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelException;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
+import org.camunda.bpm.model.bpmn.instance.ExtensionElements;
 import org.camunda.bpm.model.bpmn.instance.UserTask;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaInputOutput;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaInputParameter;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.Assert.*;
 
@@ -85,6 +89,45 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
 
 
     }
+
+    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.nonVitalTaskTest.bpmn20.xml")
+    @Test
+    public void nonVitalTaskTest() {
+        String processInstanceId = runtimeService.startProcessInstanceByKey("flightBookingProcess").getId();
+
+        Task bookFlightTask = taskService.createTaskQuery().taskName("Book Flight").singleResult();
+        completeTask("Book Flight");
+        bookFlightTask = taskService.createTaskQuery().taskName("Book Flight").singleResult();
+        assertNull(bookFlightTask);
+
+        assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("collectPoints").singleResult().getTaskState());
+
+        List<HistoricActivityInstance> historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
+        assertEquals(3, historicActivityInstance.size()); // start Event, bookFlight, collectPoints
+
+        Task collectPointsTask = taskService.createTaskQuery().taskName("Collect Royality Points").singleResult();
+        Map<String, Object> variables = taskService.getVariables(collectPointsTask.getId());
+
+        assertEquals(1, variables.size());
+        assertEquals("false", variables.get("isVital"));
+
+        taskService.handleBpmnError(collectPointsTask.getId(), "errorCode");
+        String state = ((TaskEntity) collectPointsTask).getTaskState();
+        System.out.println(state);
+
+        // here should the non-vital magic happen
+        // TODO add extension element to task that should be non-vital
+        // TODO implement non vital task behaviour
+
+        collectPointsTask = taskService.createTaskQuery().taskName("Collect Royality Points").singleResult();
+        assertNull(collectPointsTask);
+
+        // TODO this should pass
+        // assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("payFlight").singleResult().getTaskState());
+        // maybe need to build a lifecycle listener
+    }
+
+
 
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.sandroTest.bpmn20.xml")
     @Test
@@ -167,126 +210,4 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         // TODO kann ich auch executen, ohne alles einzeln zu triggern? Was wenn es keine user tasks sind?
 
     }
-
-/*
-    @RequiredHistoryLevel(ProcessEngineConfiguration.HISTORY_ACTIVITY)
-    @Test
-    public void testDeleteInstanceWithEventScopeExecution()
-    {
-        // given
-        BpmnModelInstance modelInstance = Bpmn.createExecutableProcess("foo")
-                .startEvent("start")
-                .userTask("userTask")
-                .endEvent("end")
-                .done();
-
-        testRule.deploy(modelInstance);
-        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("foo");
-
-        // then
-        List<HistoricActivityInstance> historicActivityInstance = historyService.createHistoricActivityInstanceQuery()
-                .orderByActivityId().asc().list();
-        assertEquals(2, historicActivityInstance.size());
-
-        assertEquals("start", historicActivityInstance.get(0).getActivityId());
-        assertEquals("userTask", historicActivityInstance.get(1).getActivityId());
-
-        // then
-        HistoricActivityInstance userTask = historyService.createHistoricActivityInstanceQuery()
-                .activityId("end")
-                .singleResult();
-        assertEquals("start", historicActivityInstance.get(0).getActivityId());
-
-    }
-
-    @Test
-    @RequiredHistoryLevel(ProcessEngineConfiguration.HISTORY_FULL)
-    public void shouldResolveMethodExpressionWithTwoNullParameter() {
-        // given
-        BpmnModelInstance process = Bpmn.createExecutableProcess("testProcess")
-                .startEvent()
-                .exclusiveGateway()
-                .condition("true", "${myBean.myMethod(execution.getVariable('v'), "
-                        + "execution.getVariable('w'), execution.getVariable('x'), "
-                        + "execution.getVariable('y'), execution.getVariable('z'))}")
-                .userTask("userTask")
-                .moveToLastGateway()
-                .condition("false", "${false}")
-                .endEvent()
-                .done();
-
-        deploymentId = repositoryService.createDeployment()
-                .addModelInstance("testProcess.bpmn", process)
-                .deploy()
-                .getId();
-
-        Mocks.register("myBean", new ExpressionManagerTest.MyBean());
-
-
-        // when
-        runtimeService.startProcessInstanceByKey("testProcess");
-
-
-        // then
-        HistoricActivityInstance userTask = historyService.createHistoricActivityInstanceQuery()
-                .activityId("userTask")
-                .singleResult();
-
-        Assertions.assertThat(userTask).isNotNull();
-    }
-
-    @Test
-    public void testCompositeExpressionForInputValue() {
-
-        // given
-        BpmnModelInstance instance = Bpmn.createExecutableProcess("Process")
-                .startEvent()
-                .receiveTask()
-                .camundaInputParameter("var", "Hello World${'!'}")
-                .endEvent("end")
-                .done();
-
-        testRule.deploy(instance);
-        runtimeService.startProcessInstanceByKey("Process");
-
-        // when
-        VariableInstance variableInstance = runtimeService
-                .createVariableInstanceQuery()
-                .variableName("var")
-                .singleResult();
-
-        // then
-        assertEquals("Hello World!", variableInstance.getValue());
-    }
-
-    @Test
-    public void testCompensationTask() {
-        BpmnModelInstance modelInstance = Bpmn.createProcess()
-                .startEvent()
-                .userTask("task")
-                .boundaryEvent("boundary")
-                .compensateEventDefinition().compensateEventDefinitionDone()
-                .compensationStart()
-                .userTask("compensate").name("compensate")
-                .compensationDone()
-                .endEvent("theend")
-                .done();
-
-        // Checking Association
-        Collection<Association> associations = modelInstance.getModelElementsByType(Association.class);
-        Assertions.assertThat(associations).hasSize(1);
-        Association association = associations.iterator().next();
-        Assertions.assertThat(association.getSource().getId()).isEqualTo("boundary");
-        Assertions.assertThat(association.getTarget().getId()).isEqualTo("compensate");
-        Assertions.assertThat(association.getAssociationDirection()).isEqualTo(AssociationDirection.One);
-
-        // Checking Sequence flow
-        UserTask task = modelInstance.getModelElementById("task");
-        Collection<SequenceFlow> outgoing = task.getOutgoing();
-        Assertions.assertThat(outgoing).hasSize(1);
-        SequenceFlow flow = outgoing.iterator().next();
-        Assertions.assertThat(flow.getSource().getId()).isEqualTo("task");
-        Assertions.assertThat(flow.getTarget().getId()).isEqualTo("theend");
-
-    }*/
 }

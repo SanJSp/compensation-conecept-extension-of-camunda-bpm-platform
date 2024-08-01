@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_0x9f08k" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="4.12.0">
+	<bpmn:process id="flightBookingProcess" name="Flight Booking Process" isExecutable="true">
+		<bpmn:startEvent id="startEvent">
+			<bpmn:outgoing>Flow_05qb4z2</bpmn:outgoing>
+		</bpmn:startEvent>
+		<bpmn:sequenceFlow id="Flow_05qb4z2" sourceRef="startEvent" targetRef="bookFlight" />
+		<bpmn:sequenceFlow id="Flow_0p6c4rw" sourceRef="bookFlight" targetRef="collectPoints" />
+		<bpmn:sequenceFlow id="Flow_06bauqr" sourceRef="collectPoints" targetRef="payFlight" />
+		<bpmn:endEvent id="endEvent">
+			<bpmn:incoming>Flow_1ru4mtr</bpmn:incoming>
+		</bpmn:endEvent>
+		<bpmn:sequenceFlow id="Flow_1ru4mtr" sourceRef="payFlight" targetRef="endEvent" />
+		<bpmn:userTask id="bookFlight" name="Book Flight">
+			<bpmn:incoming>Flow_05qb4z2</bpmn:incoming>
+			<bpmn:outgoing>Flow_0p6c4rw</bpmn:outgoing>
+		</bpmn:userTask>
+		<bpmn:userTask id="collectPoints" name="Collect Royality Points">
+			<bpmn:extensionElements>
+				<camunda:inputOutput>
+					<camunda:inputParameter name="isVital">false</camunda:inputParameter>
+				</camunda:inputOutput>
+			</bpmn:extensionElements>
+			<bpmn:incoming>Flow_0p6c4rw</bpmn:incoming>
+			<bpmn:outgoing>Flow_06bauqr</bpmn:outgoing>
+		</bpmn:userTask>
+		<bpmn:userTask id="payFlight" name="Pay Flight">
+			<bpmn:incoming>Flow_06bauqr</bpmn:incoming>
+			<bpmn:outgoing>Flow_1ru4mtr</bpmn:outgoing>
+		</bpmn:userTask>
+	</bpmn:process>
+</bpmn:definitions>
