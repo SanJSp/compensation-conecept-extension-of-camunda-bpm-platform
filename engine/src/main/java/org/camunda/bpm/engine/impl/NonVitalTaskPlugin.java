@@ -2,6 +2,7 @@ package org.camunda.bpm.engine.impl;
 
 import org.camunda.bpm.engine.impl.bpmn.parser.BpmnParseListener;
 import org.camunda.bpm.engine.impl.bpmn.parser.DefaultFailedJobParseListener;
+import org.camunda.bpm.engine.impl.bpmn.parser.NonVitalTaskParseListener;
 import org.camunda.bpm.engine.impl.cfg.AbstractProcessEnginePlugin;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.impl.history.parser.HistoryParseListener;
@@ -23,10 +24,7 @@ public class NonVitalTaskPlugin extends AbstractProcessEnginePlugin {
             processEngineConfiguration.setCustomPreBPMNParseListeners(preParseListeners);
         }
 
-        // add new BPMN Parse Listener
-        // filled with dummy historyParseListener, TODO use correct parseListener
-        HistoryEventProducer historyEventProducer = new CacheAwareHistoryEventProducer();
-        // preParseListeners.add(new HistoryParseListener(historyEventProducer));
+        preParseListeners.add(new NonVitalTaskParseListener());
     }
 
 

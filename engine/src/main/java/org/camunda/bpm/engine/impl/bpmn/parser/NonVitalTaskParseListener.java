@@ -20,6 +20,7 @@ public class NonVitalTaskParseListener extends AbstractBpmnParseListener {
         if (extensionElement != null) {
 
             // get the <camunda:properties ...> element from the user task
+            // TODO adapt this to support camunda:parameter
             Element propertiesElement = extensionElement.element("inputOutput");
             if (propertiesElement != null) {
 
@@ -40,6 +41,7 @@ public class NonVitalTaskParseListener extends AbstractBpmnParseListener {
                         activity.addExecutionListener(ExecutionListener.EVENTNAME_END, progressLoggingExecutionListener);
                     }*/
                     NonVitalTaskExecutionListener nonVitalTaskExecutionListener = new NonVitalTaskExecutionListener(value);
+                    //activity.addExecutionListener(ExecutionListener.EVENTNAME_START, nonVitalTaskExecutionListener);
                     activity.addExecutionListener(ExecutionListener.EVENTNAME_END, nonVitalTaskExecutionListener);
                 }
             }
