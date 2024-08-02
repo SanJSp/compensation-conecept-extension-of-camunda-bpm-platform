@@ -96,18 +96,20 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
 
         // trigger error on non-vital task
         taskService.handleBpmnError(collectPointsTask.getId(), "errorCode");
-        String state = ((TaskEntity) collectPointsTask).getTaskState();
-        System.out.println(state);
 
-        // here should the non-vital magic happen, meaning that it is automatically skipped and next task enabled
-        // DONE add extension element to task that should be non-vital
+        // verify that NonVital Task has been completed
+        assertNull(taskService.createTaskQuery().taskName("Collect Royality Points").singleResult());
+        historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
+        assertEquals(4, historicActivityInstance.size()); // start Event, bookFlight, collectPoints
+        assertNotNull(historicActivityInstance.get(2).getEndTime()); // 2nd as 3rd is taken by payFlight
 
         // Non-vital Task should be completed/finished
         collectPointsTask = taskService.createTaskQuery().taskName("Collect Royality Points").singleResult();
         assertNull(collectPointsTask);
 
-        // TODO this should pass for test case to be valid
-        // assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("payFlight").singleResult().getTaskState());
+        assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("payFlight").singleResult().getTaskState());
+        completeTask("Pay Flight");
+        testRule.assertProcessEnded(processInstanceId);
     }
 
     /// PLAYGROUND STARTS HERE

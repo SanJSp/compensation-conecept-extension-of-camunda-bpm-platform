@@ -1771,6 +1771,13 @@ public class TaskEntity extends AbstractVariableScope implements Task, DelegateT
     } else {
       bpmnError = new BpmnError(errorCode);
     }
+
+    if (activityExecution.getVariable("isVital").equals("false")){
+      //this.setTaskState("Completed");
+      this.complete();
+      return;
+    }
+
     try {
       if (variables != null && !variables.isEmpty()) {
         activityExecution.setVariables(variables);
