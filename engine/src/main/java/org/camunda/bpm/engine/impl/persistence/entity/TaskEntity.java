@@ -16,22 +16,6 @@
  */
 package org.camunda.bpm.engine.impl.persistence.entity;
 
-import static org.camunda.bpm.engine.delegate.TaskListener.EVENTNAME_DELETE;
-import static org.camunda.bpm.engine.impl.form.handler.DefaultFormHandler.FORM_REF_BINDING_VERSION;
-import static org.camunda.bpm.engine.impl.util.EnsureUtil.ensureNotNull;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.ProcessEngineServices;
@@ -84,6 +68,14 @@ import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.UserTask;
 import org.camunda.bpm.model.xml.instance.ModelElementInstance;
 import org.camunda.bpm.model.xml.type.ModelElementType;
+
+import java.io.Serializable;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+import static org.camunda.bpm.engine.delegate.TaskListener.EVENTNAME_DELETE;
+import static org.camunda.bpm.engine.impl.form.handler.DefaultFormHandler.FORM_REF_BINDING_VERSION;
+import static org.camunda.bpm.engine.impl.util.EnsureUtil.ensureNotNull;
 
 /**
  * @author Tom Baeyens
@@ -1772,10 +1764,32 @@ public class TaskEntity extends AbstractVariableScope implements Task, DelegateT
       bpmnError = new BpmnError(errorCode);
     }
 
-    if (activityExecution.getVariable("isVital").equals("false")){
-      //this.setTaskState("Completed");
+    if (activityExecution.getVariable("isVital") != null && activityExecution.getVariable("isVital").equals("false")){
       this.complete();
       return;
+    }
+
+    if ("true".equals(activityExecution.getVariable("isRetryTask"))) {
+      String cooldown = (String) activityExecution.getVariable("retryCooldown");
+      String retryCount = (String) activityExecution.getVariable("retryCount");
+      int maxRetries = Integer.parseInt(retryCount);
+
+      int failedAttempts = 0;
+      if (activityExecution.getVariable("failedAttempts") != null) {
+        failedAttempts = Integer.parseInt((String) activityExecution.getVariable("failedAttempts"));
+      }
+
+      if (failedAttempts < maxRetries) {
+        try {
+          TimeUnit.SECONDS.sleep(Integer.parseInt(cooldown));
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+        activityExecution.setVariable("failedAttempts", String.valueOf(failedAttempts + 1));
+        this.setCreateTime(new Date());
+        return;
+      }
+      // else: do nothing and continue error handling
     }
 
     try {
