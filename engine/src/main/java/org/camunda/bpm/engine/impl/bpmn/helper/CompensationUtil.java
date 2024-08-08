@@ -16,17 +16,12 @@
  */
 package org.camunda.bpm.engine.impl.bpmn.helper;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import org.camunda.bpm.engine.impl.bpmn.parser.BpmnParse;
 import org.camunda.bpm.engine.impl.context.Context;
+import org.camunda.bpm.engine.impl.core.model.Properties;
 import org.camunda.bpm.engine.impl.event.EventType;
 import org.camunda.bpm.engine.impl.persistence.entity.EventSubscriptionEntity;
 import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
@@ -49,31 +44,12 @@ public class CompensationUtil {
    */
   public final static String SIGNAL_COMPENSATION_DONE = "compensationDone";
 
+  public static boolean FLAG_SAVEPOINT_REACHED = false;
+
   /**
    * we create a separate execution for each compensation handler invocation.
    */
   public static void throwCompensationEvent(List<EventSubscriptionEntity> eventSubscriptions, ActivityExecution execution, boolean async) {
-
-    // first spawn the compensating executions
-    for (EventSubscriptionEntity eventSubscription : eventSubscriptions) {
-      // check whether compensating execution is already created
-      // (which is the case when compensating an embedded subprocess,
-      // where the compensating execution is created when leaving the subprocess
-      // and holds snapshot data).
-      ExecutionEntity compensatingExecution = getCompensatingExecution(eventSubscription);
-      if (compensatingExecution != null) {
-        if (compensatingExecution.getParent() != execution) {
-          // move the compensating execution under this execution if this is not the case yet
-          compensatingExecution.setParent((PvmExecutionImpl) execution);
-        }
-
-        compensatingExecution.setEventScope(false);
-      } else {
-        compensatingExecution = (ExecutionEntity) execution.createExecution();
-        eventSubscription.setConfiguration(compensatingExecution.getId());
-      }
-      compensatingExecution.setConcurrent(true);
-    }
 
     // signal compensation events in REVERSE order of their 'created' timestamp
     Collections.sort(eventSubscriptions, new Comparator<EventSubscriptionEntity>() {
@@ -83,9 +59,44 @@ public class CompensationUtil {
       }
     });
 
-    for (EventSubscriptionEntity compensateEventSubscriptionEntity : eventSubscriptions) {
-      compensateEventSubscriptionEntity.eventReceived(null, async);
+    // first spawn the compensating executions
+    for (EventSubscriptionEntity eventSubscription : eventSubscriptions) {
+      // check whether compensating execution is already created
+      // (which is the case when compensating an embedded subprocess,
+      // where the compensating execution is created when leaving the subprocess
+      // and holds snapshot data).
+      ExecutionEntity compensatingExecution = getCompensatingExecution(eventSubscription);
+      if("true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion"))) {
+        FLAG_SAVEPOINT_REACHED = true;
+      }
+      if (compensatingExecution != null) {
+        if (compensatingExecution.getParent() != execution) {
+          // move the compensating execution under this execution if this is not the case yet
+          compensatingExecution.setParent((PvmExecutionImpl) execution);
+        }
+
+        compensatingExecution.setEventScope(false);
+      } else {
+        if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED){
+          compensatingExecution = (ExecutionEntity) execution.createExecution();
+          eventSubscription.setConfiguration(compensatingExecution.getId());
+        }
+      }
+      if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED){
+        compensatingExecution.setConcurrent(true);
+      }
     }
+    FLAG_SAVEPOINT_REACHED = false;
+
+    for (EventSubscriptionEntity compensateEventSubscriptionEntity : eventSubscriptions) {
+      if("true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion"))) {
+        FLAG_SAVEPOINT_REACHED = true;
+      }
+      if(!"true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED) {
+        compensateEventSubscriptionEntity.eventReceived(null, async);
+      }
+    }
+    FLAG_SAVEPOINT_REACHED = false;
   }
 
   /**
