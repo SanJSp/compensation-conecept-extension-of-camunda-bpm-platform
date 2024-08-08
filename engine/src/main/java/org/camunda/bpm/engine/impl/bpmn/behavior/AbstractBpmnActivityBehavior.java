@@ -71,6 +71,10 @@ public class AbstractBpmnActivityBehavior extends FlowNodeActivityBehavior {
     PvmActivity currentActivity = execution.getActivity();
     ActivityExecution scopeExecution = execution.findExecutionForFlowScope(currentActivity.getFlowScope());
 
+    if("true".equals(currentActivity.getProperty("isSavepoint"))){
+      compensationHandler.setProperty("isSavepointCompanion", "true");
+    }
+
     EventSubscriptionEntity.createAndInsert((ExecutionEntity) scopeExecution, EventType.COMPENSATE, compensationHandler);
   }
 
