@@ -20,6 +20,7 @@ package org.camunda.bpm.engine.impl.event;
 import java.util.List;
 
 import org.camunda.bpm.engine.ProcessEngineException;
+import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.persistence.entity.EventSubscriptionEntity;
@@ -62,11 +63,14 @@ public class CompensationEventHandler implements EventHandler {
       // descend into scope:
       List<EventSubscriptionEntity> eventsForThisScope = compensatingExecution.getCompensateEventSubscriptions();
       CompensationUtil.throwCompensationEvent(eventsForThisScope, compensatingExecution, false);
-
     } else {
       try {
 
-
+        // TODO(Sandro) Figure out, how to restart process execution after partial compensation
+        RuntimeService runtimeService = compensatingExecution.getProcessEngineServices().getRuntimeService();
+        // runtimeService.createProcessInstanceById(compensatingExecution.getProcessInstanceId()).startAfterActivity(compensatingExecution.getActivityId()).execute()
+        // runtimeService.createModification(compensatingExecution.getProcessDefinitionId()).startBeforeActivity(compensatingExecution.getActivityId()).execute()
+        runtimeService.createModification(compensatingExecution.getProcessDefinitionId()).processInstanceIds(compensatingExecution.getProcessInstanceId()).startAfterActivity("bookFlight").execute();
         if (compensationHandler.isSubProcessScope() && compensationHandler.isTriggeredByEvent()) {
           compensatingExecution.executeActivity(compensationHandler);
         }
