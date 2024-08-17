@@ -59,18 +59,12 @@ public class CompensationEventHandler implements EventHandler {
       compensatingExecution.getParent().setActivityInstanceId(compensatingExecution.getActivityInstanceId());
     }
 
-    if (compensationHandler.isScope() && !compensationHandler.isCompensationHandler()) {
+    if (compensationHandler.isScope() && !compensationHandler.isCompensationHandler() && !"true".equals(compensationHandler.getProperty("isSavepoint"))) {
       // descend into scope:
       List<EventSubscriptionEntity> eventsForThisScope = compensatingExecution.getCompensateEventSubscriptions();
       CompensationUtil.throwCompensationEvent(eventsForThisScope, compensatingExecution, false);
     } else {
       try {
-
-        // TODO(Sandro) Figure out, how to restart process execution after partial compensation
-        RuntimeService runtimeService = compensatingExecution.getProcessEngineServices().getRuntimeService();
-        // runtimeService.createProcessInstanceById(compensatingExecution.getProcessInstanceId()).startAfterActivity(compensatingExecution.getActivityId()).execute()
-        // runtimeService.createModification(compensatingExecution.getProcessDefinitionId()).startBeforeActivity(compensatingExecution.getActivityId()).execute()
-        runtimeService.createModification(compensatingExecution.getProcessDefinitionId()).processInstanceIds(compensatingExecution.getProcessInstanceId()).startAfterActivity("bookFlight").execute();
         if (compensationHandler.isSubProcessScope() && compensationHandler.isTriggeredByEvent()) {
           compensatingExecution.executeActivity(compensationHandler);
         }
@@ -80,8 +74,6 @@ public class CompensationEventHandler implements EventHandler {
           compensatingExecution.setActivity(compensationHandler);
           compensatingExecution.performOperation(PvmAtomicOperation.ACTIVITY_START);
         }
-
-
       } catch (Exception e) {
         throw new ProcessEngineException("Error while handling compensation event " + eventSubscription, e);
       }

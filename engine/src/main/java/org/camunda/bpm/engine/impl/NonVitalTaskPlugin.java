@@ -26,7 +26,4 @@ public class NonVitalTaskPlugin extends AbstractProcessEnginePlugin {
 
         preParseListeners.add(new NonVitalTaskParseListener());
     }
-
-
-
 }

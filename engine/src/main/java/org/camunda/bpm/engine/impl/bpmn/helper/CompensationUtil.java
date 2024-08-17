@@ -19,6 +19,7 @@ package org.camunda.bpm.engine.impl.bpmn.helper;
 import java.util.*;
 import java.util.Map.Entry;
 
+import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.impl.bpmn.parser.BpmnParse;
 import org.camunda.bpm.engine.impl.context.Context;
 import org.camunda.bpm.engine.impl.core.model.Properties;
@@ -66,9 +67,7 @@ public class CompensationUtil {
       // where the compensating execution is created when leaving the subprocess
       // and holds snapshot data).
       ExecutionEntity compensatingExecution = getCompensatingExecution(eventSubscription);
-      if("true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion"))) {
-        FLAG_SAVEPOINT_REACHED = true;
-      }
+
       if (compensatingExecution != null) {
         if (compensatingExecution.getParent() != execution) {
           // move the compensating execution under this execution if this is not the case yet
@@ -85,15 +84,23 @@ public class CompensationUtil {
       if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED){
         compensatingExecution.setConcurrent(true);
       }
+      if("true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED) {
+        FLAG_SAVEPOINT_REACHED = true;
+        compensatingExecution = (ExecutionEntity) execution.createExecution();
+        eventSubscription.setConfiguration(compensatingExecution.getId());
+        compensatingExecution.setConcurrent(true);
+      }
     }
     FLAG_SAVEPOINT_REACHED = false;
 
     for (EventSubscriptionEntity compensateEventSubscriptionEntity : eventSubscriptions) {
-      if("true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion"))) {
-        FLAG_SAVEPOINT_REACHED = true;
+      if(!FLAG_SAVEPOINT_REACHED) {
+        if (!"true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion")) || !FLAG_SAVEPOINT_REACHED) {
+          compensateEventSubscriptionEntity.eventReceived(null, async);
+        }
       }
-      if(!"true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED) {
-        compensateEventSubscriptionEntity.eventReceived(null, async);
+      if ("true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion"))) {
+        FLAG_SAVEPOINT_REACHED = true;
       }
     }
     FLAG_SAVEPOINT_REACHED = false;

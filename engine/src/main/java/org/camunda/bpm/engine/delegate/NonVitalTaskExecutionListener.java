@@ -29,8 +29,5 @@ public class NonVitalTaskExecutionListener implements ExecutionListener {
         }
         TaskListener.EVENTNAME_CREATE.equals(execution.getCurrentActivityName());
         progressValueList.add(propertyValue);
-
-        // logging statement to see which value have the property 'progress'
-
     }
 }

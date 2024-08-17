@@ -77,15 +77,20 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         cancelCarTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Cancel Car").singleResult();
         assertNotNull(cancelCarTaskHistory.getEndTime());
 
-
         HistoricActivityInstance cancelHotelTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Cancel Hotel").singleResult();
         assertNull(cancelHotelTaskHistory);
 
         HistoricActivityInstance cancelFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Cancel Flight").singleResult();
         assertNull(cancelFlightTaskHistory);
 
+        List<HistoricActivityInstance> bookFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Book Hotel").list();
+        assertEquals(bookFlightTaskHistory.size(), 2);
 
-        //assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("Book Car").singleResult().getTaskState());
+        // Currently only possible to restart execution before savepoint, not after
+
+        completeTask("Book Hotel");
+        completeTask("Book Car");
+        completeTask("Pay Booking");
 
         testRule.assertProcessEnded(processInstanceId);
     }
