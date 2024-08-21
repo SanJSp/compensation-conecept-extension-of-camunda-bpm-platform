@@ -54,4 +54,7 @@ public interface Condition {
    * @return the result
    */
   boolean tryEvaluate(VariableScope scope, DelegateExecution execution);
+
+
+  public String getExpressionText();
 }

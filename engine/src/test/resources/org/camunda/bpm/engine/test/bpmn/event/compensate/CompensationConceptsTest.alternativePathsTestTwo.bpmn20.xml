@@ -44,18 +44,6 @@
 		<bpmn:incoming>Flow_0v06xni</bpmn:incoming>
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_1vc0tvi"/>
 	</bpmn:endEvent>
-	<bpmn:boundaryEvent id="Event_1xfrzbj" attachedToRef="Activity_1vvlclv">
-		<bpmn:outgoing>Flow_0fv5vxf</bpmn:outgoing>
-		<bpmn:errorEventDefinition id="ErrorEventDefinition_0ttu4lu"/>
-	</bpmn:boundaryEvent>
-	<bpmn:sequenceFlow id="Flow_1xrh1ir" sourceRef="Gateway_059wpqy" targetRef="Activity_1qp9cal">
-		<bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${"2isAPGateway" == true}</bpmn:conditionExpression>
-	</bpmn:sequenceFlow>
-	<bpmn:sequenceFlow id="Flow_0fv5vxf" sourceRef="Event_1xfrzbj" targetRef="Event_152iwhu"/>
-	<bpmn:endEvent id="Event_152iwhu">
-		<bpmn:incoming>Flow_0fv5vxf</bpmn:incoming>
-		<bpmn:compensateEventDefinition id="CompensateEventDefinition_1xobfkz"/>
-	</bpmn:endEvent>
 	<bpmn:sequenceFlow id="Flow_1yk143e" sourceRef="Gateway_059wpqy" targetRef="Gateway_0d7v2i4"/>
 	<bpmn:userTask id="Activity_0yugs6l" name="Savepoint">
 		<bpmn:extensionElements>
@@ -82,7 +70,6 @@
 	<bpmn:exclusiveGateway id="Gateway_0d7v2i4">
 		<bpmn:incoming>Flow_1yk143e</bpmn:incoming>
 		<bpmn:incoming>Flow_1yxqu6q</bpmn:incoming>
-		<bpmn:incoming>Flow_0acjrxh</bpmn:incoming>
 		<bpmn:outgoing>Flow_087ljam</bpmn:outgoing>
 	</bpmn:exclusiveGateway>
 	<bpmn:boundaryEvent id="Event_0qthwk5" attachedToRef="Activity_0yugs6l">
@@ -103,24 +90,6 @@
 	</bpmn:boundaryEvent>
 	<bpmn:sequenceFlow id="Flow_172fugq" sourceRef="Activity_1g1z1vs" targetRef="Activity_1fuxswn"/>
 	<bpmn:sequenceFlow id="Flow_1yxqu6q" sourceRef="Activity_1fuxswn" targetRef="Gateway_0d7v2i4"/>
-	<bpmn:boundaryEvent id="Event_0uajqc6" attachedToRef="Activity_1qp9cal">
-		<bpmn:compensateEventDefinition id="CompensateEventDefinition_1m7hf5z"/>
-	</bpmn:boundaryEvent>
-	<bpmn:userTask id="Activity_1gvzepa" name="CompC" isForCompensation="true"/>
-	<bpmn:userTask id="Activity_1vvlclv" name="TaskD">
-		<bpmn:incoming>Flow_1c0ax79</bpmn:incoming>
-		<bpmn:outgoing>Flow_0acjrxh</bpmn:outgoing>
-	</bpmn:userTask>
-	<bpmn:userTask id="Activity_1qp9cal" name="TaskC">
-		<bpmn:incoming>Flow_1xrh1ir</bpmn:incoming>
-		<bpmn:outgoing>Flow_1c0ax79</bpmn:outgoing>
-	</bpmn:userTask>
-	<bpmn:sequenceFlow id="Flow_1c0ax79" sourceRef="Activity_1qp9cal" targetRef="Activity_1vvlclv"/>
-	<bpmn:sequenceFlow id="Flow_0acjrxh" sourceRef="Activity_1vvlclv" targetRef="Gateway_0d7v2i4"/>
-	<bpmn:boundaryEvent id="Event_03pah4k" attachedToRef="Activity_1vvlclv">
-		<bpmn:compensateEventDefinition id="CompensateEventDefinition_0q9ph82"/>
-	</bpmn:boundaryEvent>
-	<bpmn:userTask id="Activity_19w51j3" name="CompD" isForCompensation="true"/>
 	<bpmn:userTask id="Activity_0tt5hwm" name="CompB" isForCompensation="true"/>
 	<bpmn:boundaryEvent id="Event_1r4p44g" attachedToRef="Activity_1fuxswn">
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_08catxp"/>
@@ -128,8 +97,6 @@
 	<bpmn:association id="Association_1mxemfb" associationDirection="One" sourceRef="Event_02pbh29" targetRef="Activity_0bmmawi"/>
 	<bpmn:association id="Association_03yuuyh" associationDirection="One" sourceRef="Event_0qthwk5" targetRef="Activity_1uu24r9"/>
 	<bpmn:association id="Association_0i8codf" associationDirection="One" sourceRef="Event_1hprvt6" targetRef="Activity_1h90nr9"/>
-	<bpmn:association id="Association_0rnx9t1" associationDirection="One" sourceRef="Event_0uajqc6" targetRef="Activity_1gvzepa"/>
-	<bpmn:association id="Association_04rz8xh" associationDirection="One" sourceRef="Event_03pah4k" targetRef="Activity_19w51j3"/>
 	<bpmn:association id="Association_00tpo3z" associationDirection="One" sourceRef="Event_1r4p44g" targetRef="Activity_0tt5hwm"/>
 </bpmn:process>
 </bpmn:definitions>

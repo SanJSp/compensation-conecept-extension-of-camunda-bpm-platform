@@ -15,8 +15,8 @@ public class NonVitalTaskExecutionListener implements ExecutionListener {
     @Override
     public void notify(DelegateExecution execution) throws Exception {
         if (callCount > 0) {
-            int executionCounts = (int) execution.getVariable("executionCounts");
-            execution.setVariable("executionCounts", ++executionCounts);
+/*            int executionCounts = (int) execution.getVariable("executionCounts");
+            execution.setVariable("executionCounts", ++executionCounts);*/
             // detect if task is non-vital
             System.out.println("Hello");
         }

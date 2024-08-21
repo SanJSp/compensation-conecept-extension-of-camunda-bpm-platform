@@ -59,7 +59,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTest.bpmn20.xml")
     @Test
     public void alternativePathsTest() {
-        String processInstanceId = runtimeService.createProcessInstanceByKey("bookingProcess").setVariable("executionCounts", 1).execute().getId();
+        String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
 
         completeTask("Book Flight");
         completeTask("Savepoint");
@@ -83,7 +83,33 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         completeTask("Pay Booking");
 
         testRule.assertProcessEnded(processInstanceId);
-        // TODO Variable ans xor gateway packen die verändert wird, statt die process variable. Dafür evtl xor gateway duplizieren und AP gateay draus machen oder xor gateway editieren und für alle xor gateways das tracken
+    }
+    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTestTwo.bpmn20.xml")
+    @Test
+    public void alternativePathsTestTakesDefaultPath() {
+        // This has only one alternative and default flow. I'm unable to throw another error after a re-execution. But
+        // this shows that the default flow is taken in case of no alternatives being left.
+        String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
+
+        completeTask("Book Flight");
+        completeTask("Savepoint");
+
+        HistoricActivityInstance taskATaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("TaskA").singleResult();
+        assertNotNull(taskATaskHistory.getStartTime());
+
+        completeTask("TaskA");
+
+        Task taskB = taskService.createTaskQuery().taskName("TaskB").singleResult();
+        taskService.handleBpmnError(taskB.getId(), "errorCode");
+
+        HistoricActivityInstance compATaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("CompA").singleResult();
+        assertNotNull(compATaskHistory.getStartTime());
+
+        completeTask("CompA");
+        completeTask("Savepoint");
+        completeTask("Pay Booking");
+
+        testRule.assertProcessEnded(processInstanceId);
     }
 
 

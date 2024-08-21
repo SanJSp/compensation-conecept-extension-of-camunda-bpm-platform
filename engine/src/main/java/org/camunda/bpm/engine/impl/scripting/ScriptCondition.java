@@ -88,4 +88,8 @@ public class ScriptCondition implements Condition {
     return script;
   }
 
+  @Override
+  public String getExpressionText(){
+    return script.toString();
+  }
 }

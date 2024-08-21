@@ -65,4 +65,9 @@ public class UelExpressionCondition implements Condition {
     }
     return result;
   }
+
+  @Override
+  public String getExpressionText() {
+    return expression.getExpressionText();
+  }
 }
