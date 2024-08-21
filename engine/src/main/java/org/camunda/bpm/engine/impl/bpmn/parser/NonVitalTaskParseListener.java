@@ -40,7 +40,7 @@ public class NonVitalTaskParseListener extends AbstractBpmnParseListener {
                         ProgressLoggingExecutionListener progressLoggingExecutionListener = new ProgressLoggingExecutionListener(value);
                         activity.addExecutionListener(ExecutionListener.EVENTNAME_END, progressLoggingExecutionListener);
                     }*/
-                    NonVitalTaskExecutionListener nonVitalTaskExecutionListener = new NonVitalTaskExecutionListener(value);
+                    NonVitalTaskExecutionListener nonVitalTaskExecutionListener = new NonVitalTaskExecutionListener();
                     //activity.addExecutionListener(ExecutionListener.EVENTNAME_START, nonVitalTaskExecutionListener);
                     activity.addExecutionListener(ExecutionListener.EVENTNAME_END, nonVitalTaskExecutionListener);
                 }

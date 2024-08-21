@@ -54,6 +54,36 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         assertNull(cancelFlightTaskHistory);
     }
 
+    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTest.bpmn20.xml")
+    @Test
+    public void alternativePathsTest() {
+        String processInstanceId = runtimeService.createProcessInstanceByKey("bookingProcess").setVariable("executionCounts", 1).execute().getId();
+
+        completeTask("Book Flight");
+        completeTask("Savepoint");
+
+        HistoricActivityInstance taskATaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("TaskA").singleResult();
+        assertNotNull(taskATaskHistory.getStartTime());
+
+        completeTask("TaskA");
+
+        Task taskB = taskService.createTaskQuery().taskName("TaskB").singleResult();
+        taskService.handleBpmnError(taskB.getId(), "errorCode");
+
+        HistoricActivityInstance compATaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("CompA").singleResult();
+        assertNotNull(compATaskHistory.getStartTime());
+
+        completeTask("CompA");
+        completeTask("Savepoint");
+
+        completeTask("TaskC");
+        completeTask("TaskD");
+        completeTask("Pay Booking");
+
+        testRule.assertProcessEnded(processInstanceId);
+        // TODO Variable ans xor gateway packen die verändert wird, statt die process variable. Dafür evtl xor gateway duplizieren und AP gateay draus machen oder xor gateway editieren und für alle xor gateways das tracken
+    }
+
 
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.savepointTest.bpmn20.xml")
     @Test
