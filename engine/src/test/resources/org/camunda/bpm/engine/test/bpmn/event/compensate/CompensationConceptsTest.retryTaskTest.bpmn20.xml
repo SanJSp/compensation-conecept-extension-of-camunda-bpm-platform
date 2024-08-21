@@ -17,9 +17,13 @@
 		<bpmn:userTask id="payFlight" name="Pay Flight">
 			<bpmn:extensionElements>
 				<camunda:inputOutput>
-					<camunda:inputParameter name="isRetryTask">true</camunda:inputParameter>
-					<camunda:inputParameter name="retryCount">3</camunda:inputParameter>
-					<camunda:inputParameter name="retryCooldown">1</camunda:inputParameter>
+					<camunda:inputParameter name="isRetryTask">
+						<camunda:map>
+							<camunda:entry key="isRetryTask">true</camunda:entry>
+							<camunda:entry key="retryCount">3</camunda:entry>
+							<camunda:entry key="retryCooldown">1</camunda:entry>
+						</camunda:map>
+					</camunda:inputParameter>
 				</camunda:inputOutput>
 			</bpmn:extensionElements>
 			<bpmn:incoming>Flow_0p6c4rw</bpmn:incoming>

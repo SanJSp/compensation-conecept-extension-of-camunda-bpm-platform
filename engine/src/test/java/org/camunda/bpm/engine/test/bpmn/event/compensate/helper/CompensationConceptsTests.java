@@ -4,6 +4,7 @@ import org.camunda.bpm.engine.history.HistoricActivityInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.util.PluggableProcessEngineTest;
+import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.model.bpmn.BpmnModelException;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaInputOutput;
@@ -11,6 +12,7 @@ import org.camunda.bpm.model.bpmn.instance.camunda.CamundaInputParameter;
 import org.junit.Test;
 
 import java.util.*;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -188,10 +190,11 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         Task payFlightTask = taskService.createTaskQuery().taskName("Pay Flight").singleResult();
         Map<String, Object> variables = taskService.getVariables(payFlightTask.getId());
 
-        assertEquals(3, variables.size());
-        assertEquals("true", variables.get("isRetryTask"));
-        assertEquals("3", variables.get("retryCount"));
-        assertEquals("1", variables.get("retryCooldown"));
+        assertEquals(1, variables.size());
+        TreeMap<String, String> varibleMap = (TreeMap<String, String>) variables.get("isRetryTask");
+        assertEquals("true", varibleMap.get("isRetryTask"));
+        assertEquals("3", varibleMap.get("retryCount"));
+        assertEquals("1", varibleMap.get("retryCooldown"));
 
 
         // get prev start time
@@ -203,10 +206,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         // check updated start time
         Date afterErrorCreateTime = taskService.createTaskQuery().taskName("Pay Flight").singleResult().getCreateTime();
         assertTrue(beforeErrorCreateTime.before(afterErrorCreateTime));
-        assertTrue(TimeUnit.MILLISECONDS.toSeconds(afterErrorCreateTime.getTime() - beforeErrorCreateTime.getTime()) >= (Integer.parseInt((String) variables.get("retryCooldown"))));
-        // updated variables
-        variables = taskService.getVariables(payFlightTask.getId());
-
+        assertTrue(TimeUnit.MILLISECONDS.toSeconds(afterErrorCreateTime.getTime() - beforeErrorCreateTime.getTime()) >= (Integer.parseInt((String) varibleMap.get("retryCooldown"))));
 
         completeTask("Pay Flight");
         HistoricActivityInstance payFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Pay Flight").singleResult();
@@ -231,13 +231,14 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         Task payFlightTask = taskService.createTaskQuery().taskName("Pay Flight").singleResult();
         Map<String, Object> variables = taskService.getVariables(payFlightTask.getId());
 
-        assertEquals(3, variables.size());
-        assertEquals("true", variables.get("isRetryTask"));
-        assertEquals("3", variables.get("retryCount"));
-        assertEquals("1", variables.get("retryCooldown"));
+        assertEquals(1, variables.size());
+        TreeMap<String, String> varaibleMap = (TreeMap<String, String>) variables.get("isRetryTask");
+        assertEquals("true", varaibleMap.get("isRetryTask"));
+        assertEquals("3", varaibleMap.get("retryCount"));
+        assertEquals("1", varaibleMap.get("retryCooldown"));
 
 
-        while (variables.get("failedAttempts") == null || variables.get("failedAttempts") != null && Integer.parseInt((String) variables.get("failedAttempts")) < Integer.parseInt((String) variables.get("retryCount"))) {
+        while (variables.get("failedAttempts") == null || variables.get("failedAttempts") != null && Integer.parseInt((String) variables.get("failedAttempts")) < Integer.parseInt((String) varaibleMap.get("retryCount"))) {
             // get prev start time
             Date beforeErrorCreateTime = taskService.createTaskQuery().taskName("Pay Flight").singleResult().getCreateTime();
 
@@ -247,7 +248,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
             // check updated start time
             Date afterErrorCreateTime = taskService.createTaskQuery().taskName("Pay Flight").singleResult().getCreateTime();
             assertTrue(beforeErrorCreateTime.before(afterErrorCreateTime));
-            assertTrue(TimeUnit.MILLISECONDS.toSeconds(afterErrorCreateTime.getTime() - beforeErrorCreateTime.getTime()) >= (Integer.parseInt((String) variables.get("retryCooldown"))));
+            assertTrue(TimeUnit.MILLISECONDS.toSeconds(afterErrorCreateTime.getTime() - beforeErrorCreateTime.getTime()) >= (Integer.parseInt((String) varaibleMap.get("retryCooldown"))));
             // updated variables
             variables = taskService.getVariables(payFlightTask.getId());
         }

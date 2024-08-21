@@ -1769,9 +1769,10 @@ public class TaskEntity extends AbstractVariableScope implements Task, DelegateT
       return;
     }
 
-    if ("true".equals(activityExecution.getVariable("isRetryTask"))) {
-      String cooldown = (String) activityExecution.getVariable("retryCooldown");
-      String retryCount = (String) activityExecution.getVariable("retryCount");
+    if (activityExecution.getVariable("isRetryTask") != null) {
+      TreeMap<String, String> variableMap = (TreeMap<String, String>) activityExecution.getVariable("isRetryTask");
+      String cooldown = variableMap.get("retryCooldown");
+      String retryCount = variableMap.get("retryCount");
       int maxRetries = Integer.parseInt(retryCount);
 
       int failedAttempts = 0;
