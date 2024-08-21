@@ -6,11 +6,6 @@
 		</bpmn:startEvent>
 		<bpmn:sequenceFlow id="Flow_0g59efg" sourceRef="startEvent" targetRef="bookFlight" />
 		<bpmn:userTask id="bookFlight" name="Book Flight">
-			<bpmn:extensionElements>
-				<camunda:inputOutput>
-					<camunda:inputParameter name="isSavepoint">true</camunda:inputParameter>
-				</camunda:inputOutput>
-			</bpmn:extensionElements>
 			<bpmn:incoming>Flow_0g59efg</bpmn:incoming>
 			<bpmn:outgoing>Flow_0aoao32</bpmn:outgoing>
 		</bpmn:userTask>

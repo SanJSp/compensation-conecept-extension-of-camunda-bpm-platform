@@ -1,10 +1,10 @@
 package org.camunda.bpm.engine.test.bpmn.event.compensate.helper;
 
+import org.apache.tools.ant.taskdefs.Parallel;
 import org.camunda.bpm.engine.history.HistoricActivityInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.util.PluggableProcessEngineTest;
-import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.model.bpmn.BpmnModelException;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaInputOutput;
@@ -17,48 +17,79 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
 
 public class CompensationConceptsTests extends PluggableProcessEngineTest {
 
-    protected CamundaInputParameter findInputParameterByName(BaseElement baseElement, String name) {
-        Collection<CamundaInputParameter> camundaInputParameters = baseElement.getExtensionElements().getElementsQuery().filterByType(CamundaInputOutput.class).singleResult().getCamundaInputParameters();
-        for (CamundaInputParameter camundaInputParameter : camundaInputParameters) {
-            if (camundaInputParameter.getCamundaName().equals(name)) {
-                return camundaInputParameter;
-            }
-        }
-        throw new BpmnModelException("Unable to find camunda:inputParameter with name '" + name + "' for element with id '" + baseElement.getId() + "'");
-    }
-
-
-    private void completeTasks(String taskName, int times) {
+    private void completeTask(String taskName) {
         List<org.camunda.bpm.engine.task.Task> tasks = taskService.createTaskQuery().taskName(taskName).list();
 
-        assertTrue("Actual there are " + tasks.size() + " open tasks with name '" + taskName + "'. Expected at least " + times, times <= tasks.size());
+        assertTrue("Actual there are " + tasks.size() + " open tasks with name '" + taskName + "'. Expected at least 1", !tasks.isEmpty());
 
         Iterator<org.camunda.bpm.engine.task.Task> taskIterator = tasks.iterator();
-        for (int i = 0; i < times; i++) {
-            Task task = taskIterator.next();
-            taskService.complete(task.getId());
-        }
-    }
-
-    private void completeTask(String taskName) {
-        completeTasks(taskName, 1);
+        Task task = taskIterator.next();
+        taskService.complete(task.getId());
     }
 
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.simpleCompensationTest.bpmn20.xml")
     @Test
     public void simpleCompensationTest() {
+        // this starts a process instance, using the model in the xml file attached to the test and identified by its process
+        // definition key, mentioned at the top of the xml
         String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
+
+        // the start event and first task is part of the history after initialization
+        List<HistoricActivityInstance> currentHistory = historyService.createHistoricActivityInstanceQuery().list();
+        assertEquals(currentHistory.size(), 2);
+
+        // the running tasks can be accessed via the taskService, only Book Flight task is currently running
+        List<Task> currentlyRunningTasks = taskService.createTaskQuery().list();
+        assertEquals(currentlyRunningTasks.size(), 1);
+        Task bookFlightTask = currentlyRunningTasks.get(0);
+        assertEquals("Book Flight", bookFlightTask.getName());
+        // in the historyService a running task can be identified by having a start time, but no end time
+        HistoricActivityInstance bookFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Book Flight").singleResult();
+        assertNotNull(bookFlightTaskHistory.getStartTime());
+        assertNull(bookFlightTaskHistory.getEndTime());
+
+        // this completes the task
         completeTask("Book Flight");
+
+        // now the end time for book flight should be available, as its completed
+        bookFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Book Flight").singleResult();
+        assertNotNull(bookFlightTaskHistory.getEndTime());
+        // but the runtime service has still a task in execution, which is the compensation task, that has been triggered
+        currentlyRunningTasks = taskService.createTaskQuery().list();
+        assertEquals(currentlyRunningTasks.size(), 1);
+        assertNotEquals("Book Flight", currentlyRunningTasks.get(0).getName());
+        assertEquals("Cancel Flight", currentlyRunningTasks.get(0).getName());
+
+        // the compensation event is automatically thrown and triggers the compensation task to start running
+        currentHistory = historyService.createHistoricActivityInstanceQuery().list();
+        assertEquals(4, currentHistory.size());  // startEvent, BookFlight, CompensationThrowEndEvent, CancelFlight
+        HistoricActivityInstance compensationThrowEvent =
+                historyService.createHistoricActivityInstanceQuery().activityId("compensationThrowEndEvent").singleResult();
+        assertNotNull(compensationThrowEvent);
+
+
+        // Cancel Flight is active
         HistoricActivityInstance cancelFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Cancel Flight").singleResult();
-        assertNull(cancelFlightTaskHistory);
+        assertNotNull(cancelFlightTaskHistory);
+        completeTask("Cancel Flight");
+
+        // compensation throw end event is then also completed
+        compensationThrowEvent = historyService.createHistoricActivityInstanceQuery().activityId("compensationThrowEndEvent").singleResult();
+        assertNotNull(compensationThrowEvent.getEndTime());
+
+
+        // with this the process instance is verified to be completed. Process instances can be accessed via the runtime service
+        testRule.assertProcessEnded(processInstanceId);
     }
 
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTest.bpmn20.xml")
     @Test
     public void alternativePathsTest() {
+        // The savepoint of the AP gateway is explicitly modelled, as it was only possible to re-execute at the savepoint, not after. Furthermore, the compensation and error events are explicit, as with the subprocesses it was not possible to trigger the compensation, as only finished subprocesses would have reacted to the compensation throw event. For this major changes in the compensation behaviour would be necessary.
         String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
 
         completeTask("Book Flight");
@@ -87,8 +118,8 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTestTwo.bpmn20.xml")
     @Test
     public void alternativePathsTestTakesDefaultPath() {
-        // This has only one alternative and default flow. I'm unable to throw another error after a re-execution. But
-        // this shows that the default flow is taken in case of no alternatives being left.
+        // This model has only one alternative and default flow. I'm unable to throw another error after a re-execution.
+        // But this shows that the default flow is taken in case of no alternatives being left.
         String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
 
         completeTask("Book Flight");
@@ -116,6 +147,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.savepointTest.bpmn20.xml")
     @Test
     public void savepointTest() {
+        // This test verifies the correct re-execution after a partial compensation. Book hotel is the savepoint. Additionally, a terminating end event was used for the happy path to handle the open compensation throw event after the re-execution.
         String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
 
         completeTask("Book Flight");
@@ -145,7 +177,6 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         assertEquals(bookFlightTaskHistory.size(), 2);
 
         // Currently only possible to restart execution before savepoint, not after
-
         completeTask("Book Hotel");
         completeTask("Book Car");
         completeTask("Pay Booking");
@@ -158,6 +189,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.nonVitalTaskTest.bpmn20.xml")
     @Test
     public void nonVitalTaskTest() {
+        // Tests whether an error in a non-vital task is ignored and the process instance completes
         String processInstanceId = runtimeService.startProcessInstanceByKey("flightBookingProcess").getId();
 
         completeTask("Book Flight");
@@ -166,14 +198,14 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         Task bookFlightTask = taskService.createTaskQuery().taskName("Book Flight").singleResult();
         assertNull(bookFlightTask);
 
-        // check if non vital task is activated
+        // check if non-vital task is activated
         assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("collectPoints").singleResult().getTaskState());
 
         // check if start event, bookFlight and nonVital task present in history, which means they were Created
         List<HistoricActivityInstance> historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
         assertEquals(3, historicActivityInstance.size()); // start Event, bookFlight, collectPoints
 
-        // check if inputVariables on non-vital task are present -  TODO this with ExtensionProperties
+        // check if inputVariables on non-vital task are present
         Task collectPointsTask = taskService.createTaskQuery().taskName("Collect Royality Points").singleResult();
         Map<String, Object> variables = taskService.getVariables(collectPointsTask.getId());
 
@@ -202,6 +234,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.retryTaskTest.bpmn20.xml")
     @Test
     public void retryTaskTest() {
+        // Tests, that a retry task retries actually failed task and important task parameters are updated. Also tests if retryCooldown is waited for.
         String processInstanceId = runtimeService.startProcessInstanceByKey("flightBookingProcess").getId();
         completeTask("Book Flight");
 
@@ -232,7 +265,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         // check updated start time
         Date afterErrorCreateTime = taskService.createTaskQuery().taskName("Pay Flight").singleResult().getCreateTime();
         assertTrue(beforeErrorCreateTime.before(afterErrorCreateTime));
-        assertTrue(TimeUnit.MILLISECONDS.toSeconds(afterErrorCreateTime.getTime() - beforeErrorCreateTime.getTime()) >= (Integer.parseInt((String) varibleMap.get("retryCooldown"))));
+        assertTrue(TimeUnit.MILLISECONDS.toSeconds(afterErrorCreateTime.getTime() - beforeErrorCreateTime.getTime()) >= (Integer.parseInt(varibleMap.get("retryCooldown"))));
 
         completeTask("Pay Flight");
         HistoricActivityInstance payFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Pay Flight").singleResult();
@@ -243,6 +276,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.retryTaskTest.bpmn20.xml")
     @Test
     public void retryTaskTestExceedsRetries() {
+        // tests that in case of a retry tasks exceeding the retryCount the error is still propagated
         String processInstanceId = runtimeService.startProcessInstanceByKey("flightBookingProcess").getId();
         completeTask("Book Flight");
 
@@ -258,13 +292,13 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         Map<String, Object> variables = taskService.getVariables(payFlightTask.getId());
 
         assertEquals(1, variables.size());
-        TreeMap<String, String> varaibleMap = (TreeMap<String, String>) variables.get("isRetryTask");
-        assertEquals("true", varaibleMap.get("isRetryTask"));
-        assertEquals("3", varaibleMap.get("retryCount"));
-        assertEquals("1", varaibleMap.get("retryCooldown"));
+        TreeMap<String, String> variableMap = (TreeMap<String, String>) variables.get("isRetryTask");
+        assertEquals("true", variableMap.get("isRetryTask"));
+        assertEquals("3", variableMap.get("retryCount"));
+        assertEquals("1", variableMap.get("retryCooldown"));
 
 
-        while (variables.get("failedAttempts") == null || variables.get("failedAttempts") != null && Integer.parseInt((String) variables.get("failedAttempts")) < Integer.parseInt((String) varaibleMap.get("retryCount"))) {
+        while (variables.get("failedAttempts") == null || variables.get("failedAttempts") != null && Integer.parseInt((String) variables.get("failedAttempts")) < Integer.parseInt(variableMap.get("retryCount"))) {
             // get prev start time
             Date beforeErrorCreateTime = taskService.createTaskQuery().taskName("Pay Flight").singleResult().getCreateTime();
 
@@ -274,7 +308,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
             // check updated start time
             Date afterErrorCreateTime = taskService.createTaskQuery().taskName("Pay Flight").singleResult().getCreateTime();
             assertTrue(beforeErrorCreateTime.before(afterErrorCreateTime));
-            assertTrue(TimeUnit.MILLISECONDS.toSeconds(afterErrorCreateTime.getTime() - beforeErrorCreateTime.getTime()) >= (Integer.parseInt((String) varaibleMap.get("retryCooldown"))));
+            assertTrue(TimeUnit.MILLISECONDS.toSeconds(afterErrorCreateTime.getTime() - beforeErrorCreateTime.getTime()) >= (Integer.parseInt(variableMap.get("retryCooldown"))));
             // updated variables
             variables = taskService.getVariables(payFlightTask.getId());
         }
@@ -292,111 +326,4 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         assertNotNull(payFlightTaskHistory.getEndTime());
         testRule.assertProcessEnded(processInstanceId);
     }
-
-    /// PLAYGROUND STARTS HERE
-
-    /*
-    @Test
-    public void test123123() {
-        BpmnModelInstance modelInstance = Bpmn.createExecutableProcess("foo").startEvent("start").userTask("userTask").camundaInputParameter("var", "Hello World${'!'}").endEvent("end").done();
-
-        testRule.deploy(modelInstance);
-        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("foo");
-
-        VariableInstance variableInstance = runtimeService.createVariableInstanceQuery().variableName("var").singleResult();
-
-        // then
-        assertEquals("Hello World!", variableInstance.getValue());
-        UserTask serviceTask = modelInstance.getModelElementById("userTask");
-
-        CamundaInputParameter inputParameter = findInputParameterByName(serviceTask, "var");
-        Assertions.assertThat(inputParameter.getCamundaName()).isEqualTo("var");
-
-
-    }
-*/
-
-/*
-
-    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.sandroTest.bpmn20.xml")
-    @Test
-    public void sandroTest() {
-        String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
-
-        completeTask("Book Flight");
-        completeTask("Book Hotel");
-        completeTask("Book Car");
-        completeTask("Pay Booking");
-
-        testRule.assertProcessEnded(processInstanceId);
-
-        List<HistoricActivityInstance> historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
-        assertEquals(6, historicActivityInstance.size());
-
-        assertEquals("startEvent", historicActivityInstance.get(0).getActivityId());
-        assertEquals("bookFlight", historicActivityInstance.get(1).getActivityId());
-        assertEquals("bookHotel", historicActivityInstance.get(2).getActivityId());
-        assertEquals("bookCar", historicActivityInstance.get(3).getActivityId());
-        assertEquals("payBooking", historicActivityInstance.get(4).getActivityId());
-        assertEquals("endEvent", historicActivityInstance.get(5).getActivityId());
-
-        processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
-        completeTask("Book Flight");
-        completeTask("Book Hotel");
-        completeTask("Book Car");
-
-        Task task = taskService.createTaskQuery().taskName("Pay Booking").singleResult();
-        Assertions.assertThat(task).isNotNull();
-        Assertions.assertThat(task.getName()).isEqualTo("Pay Booking");
-        taskService.handleBpmnError(task.getId(), "errorCode");
-        historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
-        assertEquals(16, historicActivityInstance.size());
-
-        assertEquals("startEvent", historicActivityInstance.get(6).getActivityId());
-        assertEquals("bookFlight", historicActivityInstance.get(7).getActivityId());
-        assertEquals("bookHotel", historicActivityInstance.get(8).getActivityId());
-        assertEquals("bookCar", historicActivityInstance.get(9).getActivityId());
-        assertEquals("payBooking", historicActivityInstance.get(10).getActivityId());
-
-        // following have same start times, leading to flaky test if position is tested
-        // assertEquals("errorEvent", historicActivityInstance.get(11).getActivityId());
-        //assertEquals("compensationThrowEndEvent", historicActivityInstance.get(12).getActivityId());
-
-        assertEquals("cancelCar", historicActivityInstance.get(13).getActivityId());
-        assertEquals("cancelHotel", historicActivityInstance.get(14).getActivityId());
-        assertEquals("cancelFlight", historicActivityInstance.get(15).getActivityId());
-        testRule.assertProcessNotEnded(processInstanceId);
-
-        completeTask("Cancel Flight");
-        completeTask("Cancel Hotel");
-        completeTask("Cancel Car");
-        testRule.assertProcessEnded(processInstanceId);
-
-
-        processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
-        historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
-        // again same start time as startEvent, hence flaky
-        //assertEquals("bookFlight", historicActivityInstance.get(17).getActivityId());
-        completeTask("Book Flight");
-        historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
-        assertEquals("bookHotel", historicActivityInstance.get(18).getActivityId());
-        assertEquals(null, historicActivityInstance.get(18).getEndTime());
-        completeTask("Book Hotel");
-        historicActivityInstance = historyService.createHistoricActivityInstanceQuery().orderByHistoricActivityInstanceStartTime().asc().list();
-        assertEquals("bookCar", historicActivityInstance.get(19).getActivityId());
-        assertEquals(null, historicActivityInstance.get(19).getEndTime());
-       // testRule.assertProcessEnded(processInstanceId);
-
-        // learning -> Every task is started as soon as enable, but as it's a user task I have to complete it manually.
-        ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().processInstanceId(processInstanceId).singleResult();
-        assertEquals(false, processInstance.isEnded());
-        assertEquals("Created", taskService.createTaskQuery().taskDefinitionKey("bookCar").singleResult().getTaskState());
-        completeTask("Book Car");
-        List<HistoricActivityInstance> completedBookCarTasks = historyService.createHistoricActivityInstanceQuery().activityName("Book Car").list();
-        assertNotNull(completedBookCarTasks.get(completedBookCarTasks.size() - 1).getEndTime());
-
-
-        // TODO kann ich auch executen, ohne alles einzeln zu triggern? Was wenn es keine user tasks sind?
-
-    }*/
 }

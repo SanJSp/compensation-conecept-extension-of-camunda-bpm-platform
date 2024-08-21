@@ -57,6 +57,7 @@ public class AbstractBpmnActivityBehavior extends FlowNodeActivityBehavior {
 
     // subscription for compensation event subprocess is already created
     if(compensationHandler != null && !isCompensationEventSubprocess(compensationHandler)) {
+      // add savepoint to be executed instead of compensating task for re-execution
       if("true".equals(currentActivity.getProperty("isSavepoint"))){
         createCompensateEventSubscription(execution, (ActivityImpl) currentActivity); // currentActivity.getOutgoingTransitions().get(0).getDestination()
       } else {

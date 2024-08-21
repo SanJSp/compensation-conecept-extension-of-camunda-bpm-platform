@@ -69,11 +69,6 @@
 	<bpmn:sequenceFlow id="Flow_1n9itos" sourceRef="Activity_0nafnte" targetRef="Activity_0yugs6l"/>
 	<bpmn:sequenceFlow id="Flow_0qwyei7" sourceRef="Activity_0yugs6l" targetRef="Gateway_059wpqy"/>
 	<bpmn:exclusiveGateway id="Gateway_059wpqy" default="Flow_1yk143e">
-		<bpmn:extensionElements>
-			<camunda:executionListener
-					event="start"
-					class="org.camunda.bpm.engine.delegate.NonVitalTaskExecutionListener" />
-		</bpmn:extensionElements>
 		<bpmn:incoming>Flow_0qwyei7</bpmn:incoming>
 		<bpmn:outgoing>Flow_1g394zi</bpmn:outgoing>
 		<bpmn:outgoing>Flow_1xrh1ir</bpmn:outgoing>

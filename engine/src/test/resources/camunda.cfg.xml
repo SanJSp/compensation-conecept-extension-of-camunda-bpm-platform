@@ -43,13 +43,6 @@
     <property name="telemetryEndpoint" value="http://localhost:8081/pings"/>
 
     <property name="enforceHistoryTimeToLive" value="false" />
-
-    <property name="processEnginePlugins">
-      <list>
-        <bean class="org.camunda.bpm.engine.impl.NonVitalTaskPlugin" />
-      </list>
-    </property>
-
   </bean>
 
   <!--<bean id="uuidGenerator" class="org.camunda.bpm.engine.impl.persistence.StrongUuidGenerator" />-->
