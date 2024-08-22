@@ -109,7 +109,6 @@ public class CompensationUtil {
 
     }
     FLAG_SAVEPOINT_REACHED = false;
-    FLAG_SAVEPOINT_IRRELEVANT = false;
   }
 
   /**

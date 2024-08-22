@@ -54,7 +54,7 @@ public class CompensationEventActivityBehavior extends FlowNodeActivityBehavior 
       // async (waitForCompletion=false in bpmn) is not supported
       CompensationUtil.throwCompensationEvent(eventSubscriptions, execution, false);
     }
-    if(CompensationUtil.SAVEPOINT_ACTIVITY_ID != null){
+    if(CompensationUtil.SAVEPOINT_ACTIVITY_ID != null && !CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT){
       RuntimeService runtimeService = execution.getProcessEngineServices().getRuntimeService();
       String processInstanceId = runtimeService.createProcessInstanceQuery().singleResult().getId();
       runtimeService.createModification(execution.getProcessDefinitionId())
@@ -62,6 +62,7 @@ public class CompensationEventActivityBehavior extends FlowNodeActivityBehavior 
               .processInstanceIds(processInstanceId)
               .execute();
       CompensationUtil.SAVEPOINT_ACTIVITY_ID = null;
+      CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT = false;
     }
   }
 

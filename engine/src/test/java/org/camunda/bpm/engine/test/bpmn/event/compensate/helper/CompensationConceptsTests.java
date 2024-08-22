@@ -140,10 +140,12 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         Task payBookingTask = taskService.createTaskQuery().taskName("Pay Booking").singleResult();
         taskService.handleBpmnError(payBookingTask.getId(), "errorCode");
 
+        completeTask("CompB");
         completeTask("CompA");
+        completeTask("CompSavepoint");
         completeTask("Cancel Flight");
         // This does not work, as the savepoint triggers the execution in the opposite direction, leaving an execution open
-        // testRule.assertProcessEnded(processInstanceId);
+        testRule.assertProcessEnded(processInstanceId);
     }
 
 

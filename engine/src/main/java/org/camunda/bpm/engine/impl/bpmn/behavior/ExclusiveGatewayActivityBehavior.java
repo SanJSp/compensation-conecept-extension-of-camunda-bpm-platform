@@ -82,8 +82,6 @@ public class ExclusiveGatewayActivityBehavior extends GatewayActivityBehavior {
     // is join gateway?
     if(execution.getActivity().getOutgoingTransitions().size() == 1 && execution.getActivity().getIncomingTransitions().size() > 1){
       // reset instance variable to count executions of AP gateway
-      // TODO this does not work
-      // Should also revoke the savepoint
       CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT = true;
       instanceExecutionCount = 0;
     }
