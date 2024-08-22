@@ -19,17 +19,14 @@ package org.camunda.bpm.engine.impl.bpmn.helper;
 import java.util.*;
 import java.util.Map.Entry;
 
-import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.impl.bpmn.parser.BpmnParse;
 import org.camunda.bpm.engine.impl.context.Context;
-import org.camunda.bpm.engine.impl.core.model.Properties;
 import org.camunda.bpm.engine.impl.event.EventType;
 import org.camunda.bpm.engine.impl.persistence.entity.EventSubscriptionEntity;
 import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
 import org.camunda.bpm.engine.impl.pvm.delegate.ActivityExecution;
 import org.camunda.bpm.engine.impl.pvm.process.ActivityImpl;
 import org.camunda.bpm.engine.impl.pvm.process.ScopeImpl;
-import org.camunda.bpm.engine.impl.pvm.runtime.ActivityInstanceState;
 import org.camunda.bpm.engine.impl.pvm.runtime.PvmExecutionImpl;
 import org.camunda.bpm.engine.impl.tree.TreeVisitor;
 import org.camunda.bpm.engine.impl.tree.FlowScopeWalker;
@@ -46,6 +43,7 @@ public class CompensationUtil {
   public final static String SIGNAL_COMPENSATION_DONE = "compensationDone";
 
   public static boolean FLAG_SAVEPOINT_REACHED = false;
+  public static boolean FLAG_SAVEPOINT_IRRELEVANT = false;
 
   /**
    * we create a separate execution for each compensation handler invocation.
@@ -85,7 +83,9 @@ public class CompensationUtil {
         compensatingExecution.setConcurrent(true);
       }
       if("true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED) {
-        FLAG_SAVEPOINT_REACHED = true;
+        if(!FLAG_SAVEPOINT_IRRELEVANT) {
+          FLAG_SAVEPOINT_REACHED = true;
+        }
         compensatingExecution = (ExecutionEntity) execution.createExecution();
         eventSubscription.setConfiguration(compensatingExecution.getId());
         compensatingExecution.setConcurrent(true);
@@ -94,16 +94,19 @@ public class CompensationUtil {
     FLAG_SAVEPOINT_REACHED = false;
 
     for (EventSubscriptionEntity compensateEventSubscriptionEntity : eventSubscriptions) {
-      if(!FLAG_SAVEPOINT_REACHED) {
+      if(!FLAG_SAVEPOINT_REACHED || FLAG_SAVEPOINT_IRRELEVANT) {
         if (!"true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion")) || !FLAG_SAVEPOINT_REACHED) {
           compensateEventSubscriptionEntity.eventReceived(null, async);
         }
       }
       if ("true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion"))) {
-        FLAG_SAVEPOINT_REACHED = true;
+        if(!FLAG_SAVEPOINT_IRRELEVANT){
+          FLAG_SAVEPOINT_REACHED = true;
+        }
       }
     }
     FLAG_SAVEPOINT_REACHED = false;
+    FLAG_SAVEPOINT_IRRELEVANT = false;
   }
 
   /**

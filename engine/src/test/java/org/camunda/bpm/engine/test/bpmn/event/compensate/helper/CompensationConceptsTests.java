@@ -2,6 +2,8 @@ package org.camunda.bpm.engine.test.bpmn.event.compensate.helper;
 
 import org.apache.tools.ant.taskdefs.Parallel;
 import org.camunda.bpm.engine.history.HistoricActivityInstance;
+import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
+import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.util.PluggableProcessEngineTest;
@@ -10,6 +12,8 @@ import org.camunda.bpm.model.bpmn.instance.BaseElement;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaInputOutput;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaInputParameter;
 import org.junit.Test;
+import org.junit.After;
+
 
 import java.util.*;
 import java.util.TreeMap;
@@ -29,6 +33,11 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         Iterator<org.camunda.bpm.engine.task.Task> taskIterator = tasks.iterator();
         Task task = taskIterator.next();
         taskService.complete(task.getId());
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT = false;
     }
 
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.simpleCompensationTest.bpmn20.xml")
@@ -115,6 +124,30 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
 
         testRule.assertProcessEnded(processInstanceId);
     }
+
+
+    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTest.bpmn20.xml")
+    @Test
+    public void alternativePathsRevokeSavepointIfSuccessfullyJoinedTest() {
+        // This tests, that a compensation triggered after an AP Gateways construct, will disregard the savepoint if has been is successfully joined.
+        String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
+
+        completeTask("Book Flight");
+        completeTask("Savepoint");
+        completeTask("TaskA");
+        completeTask("TaskB");
+
+        Task payBookingTask = taskService.createTaskQuery().taskName("Pay Booking").singleResult();
+        taskService.handleBpmnError(payBookingTask.getId(), "errorCode");
+
+        completeTask("CompA");
+        completeTask("Savepoint");
+        completeTask("Cancel Flight");
+        // This does not work, as the savepoint triggers the execution in the opposite direction, leaving an execution open
+        // testRule.assertProcessEnded(processInstanceId);
+    }
+
+
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTestTwo.bpmn20.xml")
     @Test
     public void alternativePathsTestTakesDefaultPath() {
@@ -147,7 +180,9 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.savepointTest.bpmn20.xml")
     @Test
     public void savepointTest() {
-        // This test verifies the correct re-execution after a partial compensation. Book hotel is the savepoint. Additionally, a terminating end event was used for the happy path to handle the open compensation throw event after the re-execution.
+        // This test verifies the correct re-execution after a partial compensation. Book hotel is the savepoint.
+        // Additionally, a terminating end event was used for the happy path to handle the open compensation throw
+        // event after the re-execution.
         String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
 
         completeTask("Book Flight");

@@ -23,6 +23,7 @@ import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.bpmn.parser.BpmnParse;
 import org.camunda.bpm.engine.impl.pvm.PvmTransition;
 import org.camunda.bpm.engine.impl.pvm.delegate.ActivityExecution;
+import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
 
 
 /**
@@ -81,6 +82,9 @@ public class ExclusiveGatewayActivityBehavior extends GatewayActivityBehavior {
     // is join gateway?
     if(execution.getActivity().getOutgoingTransitions().size() == 1 && execution.getActivity().getIncomingTransitions().size() > 1){
       // reset instance variable to count executions of AP gateway
+      // TODO this does not work
+      // Should also revoke the savepoint
+      CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT = true;
       instanceExecutionCount = 0;
     }
 
