@@ -18,12 +18,15 @@ package org.camunda.bpm.engine.impl.bpmn.behavior;
 
 import java.util.List;
 
+import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
 import org.camunda.bpm.engine.impl.bpmn.parser.CompensateEventDefinition;
 import org.camunda.bpm.engine.impl.persistence.entity.EventSubscriptionEntity;
 import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
 import org.camunda.bpm.engine.impl.pvm.delegate.ActivityExecution;
 import org.camunda.bpm.engine.impl.pvm.runtime.PvmExecutionImpl;
+import org.camunda.bpm.engine.runtime.ProcessInstance;
+import org.camunda.bpm.engine.runtime.ProcessInstanceQuery;
 
 /**
  * Behavior for a compensation end event.
@@ -51,7 +54,17 @@ public class CompensationEventActivityBehavior extends FlowNodeActivityBehavior 
       // async (waitForCompletion=false in bpmn) is not supported
       CompensationUtil.throwCompensationEvent(eventSubscriptions, execution, false);
     }
+    if(CompensationUtil.SAVEPOINT_ACTIVITY_ID != null){
+      RuntimeService runtimeService = execution.getProcessEngineServices().getRuntimeService();
+      String processInstanceId = runtimeService.createProcessInstanceQuery().singleResult().getId();
+      runtimeService.createModification(execution.getProcessDefinitionId())
+              .startAfterActivity(CompensationUtil.SAVEPOINT_ACTIVITY_ID)
+              .processInstanceIds(processInstanceId)
+              .execute();
+      CompensationUtil.SAVEPOINT_ACTIVITY_ID = null;
+    }
   }
+
 
   protected List<EventSubscriptionEntity> collectEventSubscriptions(ActivityExecution execution) {
     final String activityRef = compensateEventDefinition.getActivityRef();

@@ -44,6 +44,7 @@ public class CompensationUtil {
 
   public static boolean FLAG_SAVEPOINT_REACHED = false;
   public static boolean FLAG_SAVEPOINT_IRRELEVANT = false;
+  public static String SAVEPOINT_ACTIVITY_ID = null;
 
   /**
    * we create a separate execution for each compensation handler invocation.
@@ -82,28 +83,30 @@ public class CompensationUtil {
       if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED){
         compensatingExecution.setConcurrent(true);
       }
-      if("true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED) {
+      if("true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion"))) {
         if(!FLAG_SAVEPOINT_IRRELEVANT) {
           FLAG_SAVEPOINT_REACHED = true;
+        } else {
+          compensatingExecution = (ExecutionEntity) execution.createExecution();
+          eventSubscription.setConfiguration(compensatingExecution.getId());
+          compensatingExecution.setConcurrent(true);
         }
-        compensatingExecution = (ExecutionEntity) execution.createExecution();
-        eventSubscription.setConfiguration(compensatingExecution.getId());
-        compensatingExecution.setConcurrent(true);
       }
     }
     FLAG_SAVEPOINT_REACHED = false;
 
     for (EventSubscriptionEntity compensateEventSubscriptionEntity : eventSubscriptions) {
       if(!FLAG_SAVEPOINT_REACHED || FLAG_SAVEPOINT_IRRELEVANT) {
+        if ("true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion"))) {
+          if(!FLAG_SAVEPOINT_IRRELEVANT){
+            FLAG_SAVEPOINT_REACHED = true;
+          }
+        }
         if (!"true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion")) || !FLAG_SAVEPOINT_REACHED) {
           compensateEventSubscriptionEntity.eventReceived(null, async);
         }
       }
-      if ("true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion"))) {
-        if(!FLAG_SAVEPOINT_IRRELEVANT){
-          FLAG_SAVEPOINT_REACHED = true;
-        }
-      }
+
     }
     FLAG_SAVEPOINT_REACHED = false;
     FLAG_SAVEPOINT_IRRELEVANT = false;

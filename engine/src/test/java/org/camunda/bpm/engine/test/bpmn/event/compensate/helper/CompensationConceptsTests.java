@@ -38,6 +38,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @After
     public void tearDown() throws Exception {
         CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT = false;
+        CompensationUtil.SAVEPOINT_ACTIVITY_ID = null;
     }
 
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.simpleCompensationTest.bpmn20.xml")
@@ -116,7 +117,6 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         assertNotNull(compATaskHistory.getStartTime());
 
         completeTask("CompA");
-        completeTask("Savepoint");
 
         completeTask("TaskC");
         completeTask("TaskD");
@@ -141,7 +141,6 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         taskService.handleBpmnError(payBookingTask.getId(), "errorCode");
 
         completeTask("CompA");
-        completeTask("Savepoint");
         completeTask("Cancel Flight");
         // This does not work, as the savepoint triggers the execution in the opposite direction, leaving an execution open
         // testRule.assertProcessEnded(processInstanceId);
@@ -170,7 +169,6 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         assertNotNull(compATaskHistory.getStartTime());
 
         completeTask("CompA");
-        completeTask("Savepoint");
         completeTask("Pay Booking");
 
         testRule.assertProcessEnded(processInstanceId);
@@ -208,18 +206,14 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         HistoricActivityInstance cancelFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Cancel Flight").singleResult();
         assertNull(cancelFlightTaskHistory);
 
-        List<HistoricActivityInstance> bookFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Book Hotel").list();
-        assertEquals(bookFlightTaskHistory.size(), 2);
+        List<HistoricActivityInstance> bookHotelTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Book Hotel").list();
+        assertEquals(1, bookHotelTaskHistory.size());
 
-        // Currently only possible to restart execution before savepoint, not after
-        completeTask("Book Hotel");
         completeTask("Book Car");
         completeTask("Pay Booking");
 
         testRule.assertProcessEnded(processInstanceId);
     }
-
-
 
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.nonVitalTaskTest.bpmn20.xml")
     @Test
