@@ -15,7 +15,6 @@
 	</bpmn:userTask>
 	<bpmn:endEvent id="Event_0byh6jg">
 		<bpmn:incoming>Flow_01jpmht</bpmn:incoming>
-		<bpmn:terminateEventDefinition id="TerminateEventDefinition_0je758p" />
 	</bpmn:endEvent>
 	<bpmn:sequenceFlow id="Flow_01jpmht" sourceRef="Activity_1bd4lf8" targetRef="Event_0byh6jg"/>
 	<bpmn:boundaryEvent id="Event_1rpmqkk" attachedToRef="Activity_1bd4lf8">

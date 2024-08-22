@@ -217,6 +217,52 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         testRule.assertProcessEnded(processInstanceId);
     }
 
+
+    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.savepointTest.bpmn20.xml")
+    @Test
+    public void savepointIgnoredOnSecondErrorTest() {
+        // This test verifies
+        String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
+
+        completeTask("Book Flight");
+        completeTask("Book Hotel");
+        completeTask("Book Car");
+
+        Task paymentTask = taskService.createTaskQuery().taskName("Pay Booking").singleResult();
+        taskService.handleBpmnError(paymentTask.getId(), "errorCode");
+
+        HistoricActivityInstance cancelCarTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Cancel Car").singleResult();
+        assertNotNull(cancelCarTaskHistory);
+        assertNotNull(cancelCarTaskHistory.getStartTime());
+        assertNull(cancelCarTaskHistory.getEndTime());
+
+        completeTask("Cancel Car");
+
+        cancelCarTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Cancel Car").singleResult();
+        assertNotNull(cancelCarTaskHistory.getEndTime());
+
+        HistoricActivityInstance cancelHotelTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Cancel Hotel").singleResult();
+        assertNull(cancelHotelTaskHistory);
+
+        HistoricActivityInstance cancelFlightTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Cancel Flight").singleResult();
+        assertNull(cancelFlightTaskHistory);
+
+        List<HistoricActivityInstance> bookHotelTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("Book Hotel").list();
+        assertEquals(1, bookHotelTaskHistory.size());
+
+        completeTask("Book Car");
+
+        paymentTask = taskService.createTaskQuery().taskName("Pay Booking").singleResult();
+        taskService.handleBpmnError(paymentTask.getId(), "errorCode");
+
+        completeTask("Cancel Car");
+        completeTask("Cancel Hotel");
+        completeTask("Cancel Flight");
+
+
+        testRule.assertProcessEnded(processInstanceId);
+    }
+
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.nonVitalTaskTest.bpmn20.xml")
     @Test
     public void nonVitalTaskTest() {

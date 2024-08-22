@@ -39,7 +39,6 @@
 		<bpmn:sequenceFlow id="Flow_0noqsum" sourceRef="bookCar" targetRef="payBooking" />
 		<bpmn:endEvent id="endEvent">
 			<bpmn:incoming>Flow_1inwse4</bpmn:incoming>
-			<bpmn:terminateEventDefinition id="TerminateEventDefinition_0je758p" />
 		</bpmn:endEvent>
 		<bpmn:sequenceFlow id="Flow_1inwse4" sourceRef="payBooking" targetRef="endEvent" />
 		<bpmn:boundaryEvent id="errorEvent" attachedToRef="payBooking">
