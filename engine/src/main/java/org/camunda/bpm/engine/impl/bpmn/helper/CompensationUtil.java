@@ -44,6 +44,7 @@ public class CompensationUtil {
 
   public static boolean FLAG_SAVEPOINT_REACHED = false;
   public static boolean FLAG_SAVEPOINT_IRRELEVANT = false;
+  public static boolean FLAG_AP_SAVEPOINT = false;
   public static String SAVEPOINT_ACTIVITY_ID = null;
 
   /**

@@ -59,7 +59,7 @@
 	<bpmn:userTask id="Activity_0yugs6l" name="Savepoint">
 		<bpmn:extensionElements>
 			<camunda:inputOutput>
-				<camunda:inputParameter name="isSavepoint">true</camunda:inputParameter>
+				<camunda:inputParameter name="isAPSavepoint">true</camunda:inputParameter>
 			</camunda:inputOutput>
 		</bpmn:extensionElements>
 		<bpmn:incoming>Flow_1n9itos</bpmn:incoming>

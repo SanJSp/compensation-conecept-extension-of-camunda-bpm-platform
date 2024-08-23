@@ -2812,6 +2812,9 @@ public class BpmnParse extends Parse {
           if ("isSavepoint".equals(nameAttribute)) {
             activity.setProperty("isSavepoint", "true");
           }
+          if ("isAPSavepoint".equals(nameAttribute)) {
+            activity.setProperty("isAPSavepoint", "true");
+          }
         }
       }
     }

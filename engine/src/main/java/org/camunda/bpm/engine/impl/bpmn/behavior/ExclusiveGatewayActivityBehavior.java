@@ -83,6 +83,8 @@ public class ExclusiveGatewayActivityBehavior extends GatewayActivityBehavior {
     if(execution.getActivity().getOutgoingTransitions().size() == 1 && execution.getActivity().getIncomingTransitions().size() > 1){
       // reset instance variable to count executions of AP gateway
       CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT = true;
+      CompensationUtil.FLAG_AP_SAVEPOINT = false;
+      CompensationUtil.SAVEPOINT_ACTIVITY_ID = null;
       instanceExecutionCount = 0;
     }
 

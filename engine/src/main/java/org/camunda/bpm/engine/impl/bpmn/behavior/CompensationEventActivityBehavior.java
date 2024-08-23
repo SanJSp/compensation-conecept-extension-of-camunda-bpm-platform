@@ -61,14 +61,16 @@ public class CompensationEventActivityBehavior extends FlowNodeActivityBehavior 
               .startAfterActivity(CompensationUtil.SAVEPOINT_ACTIVITY_ID)
               .processInstanceIds(processInstanceId)
               .execute();
-      CompensationUtil.SAVEPOINT_ACTIVITY_ID = null;
       // AP gateways disable the savepoint in the join gateway. A savepoint by itself, can only be disabled, when it
       // has finished executing. This line leads to the savepoint being only executed once, or much rather a savepoint
       // in a process instance being executed only once. To support multiple savepoints, one could collect
       // successfully executed savepoints in a map to identify already executed savepoints as relevant/irrelevant. This
       // furthermore requires an algorithm to correctly reconstruct the savepoints based on completion time, to always
       // mark the correct one as irrelevant.
-      CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT = true;
+      if(!CompensationUtil.FLAG_AP_SAVEPOINT) {
+        CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT = true;
+        CompensationUtil.SAVEPOINT_ACTIVITY_ID = null;
+      }
     }
   }
 

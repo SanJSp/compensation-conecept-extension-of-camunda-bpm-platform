@@ -41,6 +41,24 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         CompensationUtil.SAVEPOINT_ACTIVITY_ID = null;
     }
 
+    /**
+     * Requirements:
+     * - Non-vital task: If error is thrown during task, continu eexecution
+     * - Retry task: Task is retried x times, with at least y cooldown and if not successfull, propagates error
+     * - Savepoint:
+     *      - Partial compensation supported
+     *      - Re-execution after the savepoint is supported
+     *      - Savepoint is used only once
+     * - Alternative Paths Gateway:
+     *      - State in the gateway that defines which outgoing flow to take
+     *      - If all outgoing flows fail, default flow is taken (default behaviour of XOR)
+     *      - If AP successfully joined, savepoint will be disregarded
+     *
+     * Not supported:
+     * - Multiple savepoints in a process, as currently flags are used and with multiple ones, maps/lists would be required which could leads to a complicated algorithm to which is actually the closest savepoint to be reached from this position
+     * - Combining savepoints and APs in one process instance
+     */
+
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.simpleCompensationTest.bpmn20.xml")
     @Test
     public void simpleCompensationTest() {
@@ -99,7 +117,10 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTest.bpmn20.xml")
     @Test
     public void alternativePathsTest() {
-        // The savepoint of the AP gateway is explicitly modelled, as it was only possible to re-execute at the savepoint, not after. Furthermore, the compensation and error events are explicit, as with the subprocesses it was not possible to trigger the compensation, as only finished subprocesses would have reacted to the compensation throw event. For this major changes in the compensation behaviour would be necessary.
+        // The savepoint of the AP gateway is explicitly modelled, as it was only possible to re-execute at the
+        // savepoint, not after. Furthermore, the compensation and error events are explicit, as with the subprocesses
+        // it was not possible to trigger the compensation, as only finished subprocesses would have reacted to the
+        // compensation throw event. For this major changes in the compensation behaviour would be necessary.
         String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
 
         completeTask("Book Flight");
@@ -144,12 +165,12 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         completeTask("CompA");
         completeTask("CompSavepoint");
         completeTask("Cancel Flight");
-        // This does not work, as the savepoint triggers the execution in the opposite direction, leaving an execution open
+
         testRule.assertProcessEnded(processInstanceId);
     }
 
 
-    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTestTwo.bpmn20.xml")
+    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.alternativePathsTest.bpmn20.xml")
     @Test
     public void alternativePathsTestTakesDefaultPath() {
         // This model has only one alternative and default flow. I'm unable to throw another error after a re-execution.
@@ -171,6 +192,16 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         assertNotNull(compATaskHistory.getStartTime());
 
         completeTask("CompA");
+
+        completeTask("TaskC");
+
+        Task taskD = taskService.createTaskQuery().taskName("TaskD").singleResult();
+        taskService.handleBpmnError(taskD.getId(), "errorCode");
+
+        HistoricActivityInstance compCTaskHistory = historyService.createHistoricActivityInstanceQuery().activityName("CompC").singleResult();
+        assertNotNull(compCTaskHistory.getStartTime());
+        completeTask("CompC");
+
         completeTask("Pay Booking");
 
         testRule.assertProcessEnded(processInstanceId);
