@@ -60,7 +60,7 @@ public class AbstractBpmnActivityBehavior extends FlowNodeActivityBehavior {
     if(compensationHandler != null && !isCompensationEventSubprocess(compensationHandler)) {
       // add savepoint to be executed instead of compensating task for re-execution
       if("true".equals(currentActivity.getProperty("isSavepoint")) || "true".equals(currentActivity.getProperty("isAPSavepoint"))){
-        CompensationUtil.SAVEPOINT_ACTIVITY_ID = ((ActivityImpl) currentActivity).getActivityId();
+        CompensationUtil.setSavepointActivityId(((ActivityImpl) currentActivity).getActivityId());
       }
       createCompensateEventSubscription(execution, compensationHandler);
     }
@@ -79,7 +79,7 @@ public class AbstractBpmnActivityBehavior extends FlowNodeActivityBehavior {
     if("true".equals(currentActivity.getProperty("isSavepoint"))  || "true".equals(currentActivity.getProperty("isAPSavepoint"))){
       compensationHandler.setProperty("isSavepointCompanion", "true");
       if("true".equals(currentActivity.getProperty("isAPSavepoint"))){
-        CompensationUtil.FLAG_AP_SAVEPOINT = true;
+        CompensationUtil.setFlagApSavepoint(true);
       }
     }
 

@@ -16,8 +16,14 @@
  */
 package org.camunda.bpm.engine.impl.bpmn.helper;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.camunda.bpm.engine.impl.bpmn.parser.BpmnParse;
 import org.camunda.bpm.engine.impl.context.Context;
@@ -27,6 +33,7 @@ import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
 import org.camunda.bpm.engine.impl.pvm.delegate.ActivityExecution;
 import org.camunda.bpm.engine.impl.pvm.process.ActivityImpl;
 import org.camunda.bpm.engine.impl.pvm.process.ScopeImpl;
+import org.camunda.bpm.engine.impl.pvm.runtime.ActivityInstanceState;
 import org.camunda.bpm.engine.impl.pvm.runtime.PvmExecutionImpl;
 import org.camunda.bpm.engine.impl.tree.TreeVisitor;
 import org.camunda.bpm.engine.impl.tree.FlowScopeWalker;
@@ -42,10 +49,12 @@ public class CompensationUtil {
    */
   public final static String SIGNAL_COMPENSATION_DONE = "compensationDone";
 
-  public static boolean FLAG_SAVEPOINT_REACHED = false;
-  public static boolean FLAG_SAVEPOINT_IRRELEVANT = false;
-  public static boolean FLAG_AP_SAVEPOINT = false;
-  public static String SAVEPOINT_ACTIVITY_ID = null;
+  private static boolean FLAG_SAVEPOINT_REACHED = false;
+  private static boolean FLAG_SAVEPOINT_IRRELEVANT = false;
+  private static boolean FLAG_AP_SAVEPOINT = false;
+  private static String SAVEPOINT_ACTIVITY_ID = null;
+
+
 
   /**
    * we create a separate execution for each compensation handler invocation.
@@ -76,17 +85,17 @@ public class CompensationUtil {
 
         compensatingExecution.setEventScope(false);
       } else {
-        if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED){
+        if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !isFlagSavepointReached()){
           compensatingExecution = (ExecutionEntity) execution.createExecution();
           eventSubscription.setConfiguration(compensatingExecution.getId());
         }
       }
-      if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !FLAG_SAVEPOINT_REACHED){
+      if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !isFlagSavepointReached()){
         compensatingExecution.setConcurrent(true);
       }
       if("true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion"))) {
-        if(!FLAG_SAVEPOINT_IRRELEVANT) {
-          FLAG_SAVEPOINT_REACHED = true;
+        if(!isFlagSavepointIrrelevant()) {
+          setFlagSavepointReached(true);
         } else {
           compensatingExecution = (ExecutionEntity) execution.createExecution();
           eventSubscription.setConfiguration(compensatingExecution.getId());
@@ -94,22 +103,22 @@ public class CompensationUtil {
         }
       }
     }
-    FLAG_SAVEPOINT_REACHED = false;
+    setFlagSavepointReached(false);
 
     for (EventSubscriptionEntity compensateEventSubscriptionEntity : eventSubscriptions) {
-      if(!FLAG_SAVEPOINT_REACHED || FLAG_SAVEPOINT_IRRELEVANT) {
+      if(!isFlagSavepointReached() || isFlagSavepointIrrelevant()) {
         if ("true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion"))) {
           if(!FLAG_SAVEPOINT_IRRELEVANT){
-            FLAG_SAVEPOINT_REACHED = true;
+            setFlagSavepointReached(true);
           }
         }
-        if (!"true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion")) || !FLAG_SAVEPOINT_REACHED) {
+        if (!"true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion")) || !isFlagSavepointReached()) {
           compensateEventSubscriptionEntity.eventReceived(null, async);
         }
       }
 
     }
-    FLAG_SAVEPOINT_REACHED = false;
+    setFlagSavepointReached(false);
   }
 
   /**
@@ -279,4 +288,42 @@ public class CompensationUtil {
     }
   }
 
+  public static String getSavepointActivityId() {
+    return SAVEPOINT_ACTIVITY_ID;
+  }
+
+  public static void setSavepointActivityId(String savepointActivityId) {
+    SAVEPOINT_ACTIVITY_ID = savepointActivityId;
+  }
+
+  public static boolean isFlagApSavepoint() {
+    return FLAG_AP_SAVEPOINT;
+  }
+
+  public static void setFlagApSavepoint(boolean flagApSavepoint) {
+    FLAG_AP_SAVEPOINT = flagApSavepoint;
+  }
+
+  public static boolean isFlagSavepointIrrelevant() {
+    return FLAG_SAVEPOINT_IRRELEVANT;
+  }
+
+  public static void setFlagSavepointIrrelevant(boolean flagSavepointIrrelevant) {
+    FLAG_SAVEPOINT_IRRELEVANT = flagSavepointIrrelevant;
+  }
+
+  public static boolean isFlagSavepointReached() {
+    return FLAG_SAVEPOINT_REACHED;
+  }
+
+  public static void setFlagSavepointReached(boolean flagSavepointReached) {
+    FLAG_SAVEPOINT_REACHED = flagSavepointReached;
+  }
+
+  public static void resetSavepointFlags() {
+    setFlagSavepointIrrelevant(false);
+    setSavepointActivityId(null);
+    setFlagSavepointReached(false);
+    setFlagApSavepoint(false);
+  }
 }

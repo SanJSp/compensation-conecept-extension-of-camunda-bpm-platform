@@ -54,11 +54,11 @@ public class CompensationEventActivityBehavior extends FlowNodeActivityBehavior 
       // async (waitForCompletion=false in bpmn) is not supported
       CompensationUtil.throwCompensationEvent(eventSubscriptions, execution, false);
     }
-    if(CompensationUtil.SAVEPOINT_ACTIVITY_ID != null && !CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT){
+    if(CompensationUtil.getSavepointActivityId() != null && !CompensationUtil.isFlagSavepointIrrelevant()){
       RuntimeService runtimeService = execution.getProcessEngineServices().getRuntimeService();
       String processInstanceId = runtimeService.createProcessInstanceQuery().singleResult().getId();
       runtimeService.createModification(execution.getProcessDefinitionId())
-              .startAfterActivity(CompensationUtil.SAVEPOINT_ACTIVITY_ID)
+              .startAfterActivity(CompensationUtil.getSavepointActivityId())
               .processInstanceIds(processInstanceId)
               .execute();
       // AP gateways disable the savepoint in the join gateway. A savepoint by itself, can only be disabled, when it
@@ -67,9 +67,9 @@ public class CompensationEventActivityBehavior extends FlowNodeActivityBehavior 
       // successfully executed savepoints in a map to identify already executed savepoints as relevant/irrelevant. This
       // furthermore requires an algorithm to correctly reconstruct the savepoints based on completion time, to always
       // mark the correct one as irrelevant.
-      if(!CompensationUtil.FLAG_AP_SAVEPOINT) {
-        CompensationUtil.FLAG_SAVEPOINT_IRRELEVANT = true;
-        CompensationUtil.SAVEPOINT_ACTIVITY_ID = null;
+      if(!CompensationUtil.isFlagApSavepoint()) {
+        CompensationUtil.setFlagSavepointIrrelevant(true);
+        CompensationUtil.setSavepointActivityId(null);
       }
     }
   }
