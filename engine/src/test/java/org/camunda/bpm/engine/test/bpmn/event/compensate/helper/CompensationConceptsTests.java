@@ -5,6 +5,7 @@ import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.util.PluggableProcessEngineTest;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.After;
 
@@ -38,6 +39,11 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         CompensationUtil.resetSavepointFlags();
     }
 
+    @Before
+    public void setUp() throws Exception {
+        CompensationUtil.resetSavepointFlags();
+    }
+
     /**
      * Requirements:
      * - Non-vital task: If error is thrown during task, continu eexecution
@@ -56,6 +62,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
      * required which could leads to a complicated algorithm to which is actually the closest savepoint to be reached
      * from this position
      * - Combining savepoints and APs in one process instance
+     * - Other task types than user tasks (not tested with other types)
      */
 
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest" +

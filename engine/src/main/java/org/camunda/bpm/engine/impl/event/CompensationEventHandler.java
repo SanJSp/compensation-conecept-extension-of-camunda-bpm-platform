@@ -59,7 +59,7 @@ public class CompensationEventHandler implements EventHandler {
       compensatingExecution.getParent().setActivityInstanceId(compensatingExecution.getActivityInstanceId());
     }
 
-    if (compensationHandler.isScope() && !compensationHandler.isCompensationHandler() && !"true".equals(compensationHandler.getProperty("isSavepoint"))&& !"true".equals(compensationHandler.getProperty("isAPSavepoint"))) {
+    if (compensationHandler.isScope() && !compensationHandler.isCompensationHandler()) {
       // descend into scope:
       List<EventSubscriptionEntity> eventsForThisScope = compensatingExecution.getCompensateEventSubscriptions();
       CompensationUtil.throwCompensationEvent(eventsForThisScope, compensatingExecution, false);

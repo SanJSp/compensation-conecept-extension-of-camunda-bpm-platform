@@ -108,7 +108,7 @@ public class CompensationUtil {
     for (EventSubscriptionEntity compensateEventSubscriptionEntity : eventSubscriptions) {
       if(!isFlagSavepointReached() || isFlagSavepointIrrelevant()) {
         if ("true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion"))) {
-          if(!FLAG_SAVEPOINT_IRRELEVANT){
+          if(!isFlagSavepointIrrelevant()){
             setFlagSavepointReached(true);
           }
         }
