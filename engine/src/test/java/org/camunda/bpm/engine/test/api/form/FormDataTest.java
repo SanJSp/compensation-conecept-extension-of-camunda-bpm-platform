@@ -249,8 +249,7 @@ public class FormDataTest extends PluggableProcessEngineTest {
     assertEquals(formValues, runtimeService.getVariables(processInstance.getId()));
   }
 
-  @Deployment
-  @Test
+  @Deployment(resources = "org/camunda/bpm/engine/test/api/form/FormDataTest.testMissingFormVariables.bpmn20.xml")
   public void testMissingFormVariables()
   {
     // given process definition with defined form varaibles
