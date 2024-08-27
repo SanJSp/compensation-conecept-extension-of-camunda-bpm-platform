@@ -1,11 +1,16 @@
 package org.camunda.bpm.engine.test.bpmn.event.compensate.helper;
 
+import ch.qos.logback.classic.Level;
+import org.camunda.bpm.engine.BadUserRequestException;
 import org.camunda.bpm.engine.history.HistoricActivityInstance;
 import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
+import org.camunda.bpm.engine.runtime.VariableInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.util.PluggableProcessEngineTest;
+import org.camunda.commons.testing.ProcessEngineLoggingRule;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.After;
 
@@ -17,11 +22,19 @@ import java.util.TreeMap;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotNull;
 
 public class CompensationConceptsTests extends PluggableProcessEngineTest {
+
+    protected static final String BPMN_BEHAVIOR_LOGGER = "org.camunda.bpm.engine.bpmn.behavior";
+
+    @Rule
+    public ProcessEngineLoggingRule loggingRule = new ProcessEngineLoggingRule()
+            .watch(BPMN_BEHAVIOR_LOGGER)
+            .level(Level.ALL);
 
     private void completeTask(String taskName) {
         List<Task> tasks = taskService.createTaskQuery().taskName(taskName).list();
@@ -142,22 +155,22 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         completeTask("Savepoint");
 
         HistoricActivityInstance taskATaskHistory =
-                historyService.createHistoricActivityInstanceQuery().activityName("TaskA").singleResult();
+                historyService.createHistoricActivityInstanceQuery().activityName("Book Car").singleResult();
         assertNotNull(taskATaskHistory.getStartTime());
 
-        completeTask("TaskA");
+        completeTask("Book Car");
 
-        Task taskB = taskService.createTaskQuery().taskName("TaskB").singleResult();
+        Task taskB = taskService.createTaskQuery().taskName("Reserve Equipment").singleResult();
         taskService.handleBpmnError(taskB.getId(), "errorCode");
 
         HistoricActivityInstance compATaskHistory =
-                historyService.createHistoricActivityInstanceQuery().activityName("CompA").singleResult();
+                historyService.createHistoricActivityInstanceQuery().activityName("Cancel Car").singleResult();
         assertNotNull(compATaskHistory.getStartTime());
 
-        completeTask("CompA");
+        completeTask("Cancel Car");
 
-        completeTask("TaskC");
-        completeTask("TaskD");
+        completeTask("Book Train");
+        completeTask("Book Seat Reservations");
         completeTask("Pay Booking");
 
         testRule.assertProcessEnded(processInstanceId);
@@ -174,14 +187,14 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
 
         completeTask("Book Flight");
         completeTask("Savepoint");
-        completeTask("TaskA");
-        completeTask("TaskB");
+        completeTask("Book Car");
+        completeTask("Reserve Equipment");
 
         Task payBookingTask = taskService.createTaskQuery().taskName("Pay Booking").singleResult();
         taskService.handleBpmnError(payBookingTask.getId(), "errorCode");
 
-        completeTask("CompB");
-        completeTask("CompA");
+        completeTask("Cancel Equipment");
+        completeTask("Cancel Car");
         completeTask("CompSavepoint");
         completeTask("Cancel Flight");
 
@@ -200,29 +213,29 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         completeTask("Savepoint");
 
         HistoricActivityInstance taskATaskHistory =
-                historyService.createHistoricActivityInstanceQuery().activityName("TaskA").singleResult();
+                historyService.createHistoricActivityInstanceQuery().activityName("Book Car").singleResult();
         assertNotNull(taskATaskHistory.getStartTime());
 
-        completeTask("TaskA");
+        completeTask("Book Car");
 
-        Task taskB = taskService.createTaskQuery().taskName("TaskB").singleResult();
+        Task taskB = taskService.createTaskQuery().taskName("Reserve Equipment").singleResult();
         taskService.handleBpmnError(taskB.getId(), "errorCode");
 
         HistoricActivityInstance compATaskHistory =
-                historyService.createHistoricActivityInstanceQuery().activityName("CompA").singleResult();
+                historyService.createHistoricActivityInstanceQuery().activityName("Cancel Car").singleResult();
         assertNotNull(compATaskHistory.getStartTime());
 
-        completeTask("CompA");
+        completeTask("Cancel Car");
 
-        completeTask("TaskC");
+        completeTask("Book Train");
 
-        Task taskD = taskService.createTaskQuery().taskName("TaskD").singleResult();
+        Task taskD = taskService.createTaskQuery().taskName("Book Seat Reservations").singleResult();
         taskService.handleBpmnError(taskD.getId(), "errorCode");
 
         HistoricActivityInstance compCTaskHistory =
-                historyService.createHistoricActivityInstanceQuery().activityName("CompC").singleResult();
+                historyService.createHistoricActivityInstanceQuery().activityName("Cancel Train").singleResult();
         assertNotNull(compCTaskHistory.getStartTime());
-        completeTask("CompC");
+        completeTask("Cancel Train");
 
         completeTask("Pay Booking");
 
@@ -402,14 +415,14 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         TreeMap<String, String> variableMap = (TreeMap<String, String>) variables.get("isRetryTask");
         assertEquals("true", variableMap.get("isRetryTask"));
         assertEquals("3", variableMap.get("retryCount"));
-        assertEquals("1", variableMap.get("retryCooldown"));
+        assertEquals("10", variableMap.get("retryCooldown"));
 
 
         // get prev start time
         Date beforeErrorCreateTime =
-                taskService.createTaskQuery().taskName("Pay Flight").singleResult().getCreateTime();
+                new Date();
 
-        // trigger error on non-vital task
+        // trigger error on retry task
         taskService.handleBpmnError(payFlightTask.getId(), "errorCode");
 
         // check updated start time
@@ -418,8 +431,15 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         assertTrue(TimeUnit.MILLISECONDS.toSeconds(afterErrorCreateTime.getTime()
                 - beforeErrorCreateTime.getTime()) >= (Integer.parseInt(variableMap.get("retryCooldown"))));
 
-        completeTask("Pay Flight");
         HistoricActivityInstance payFlightTaskHistory =
+                historyService.createHistoricActivityInstanceQuery().activityName("Pay Flight").singleResult();
+
+        // check if retry task is ready to be executed
+        assertEquals("Created",
+                taskService.createTaskQuery().taskDefinitionKey("payFlight").singleResult().getTaskState());
+
+        completeTask("Pay Flight");
+        payFlightTaskHistory =
                 historyService.createHistoricActivityInstanceQuery().activityName("Pay Flight").singleResult();
         assertNotNull(payFlightTaskHistory.getEndTime());
         testRule.assertProcessEnded(processInstanceId);
@@ -428,7 +448,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
     @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.retryTaskTest" +
             ".bpmn20.xml")
     @Test
-    public void retryTaskTestExceedsRetries() {
+    public void retryTaskExceedsRetriesTest() {
         // tests that in case of a retry tasks exceeding the retryCount the error is still propagated
         String processInstanceId = runtimeService.startProcessInstanceByKey("flightBookingProcess").getId();
         completeTask("Book Flight");
@@ -449,7 +469,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         TreeMap<String, String> variableMap = (TreeMap<String, String>) variables.get("isRetryTask");
         assertEquals("true", variableMap.get("isRetryTask"));
         assertEquals("3", variableMap.get("retryCount"));
-        assertEquals("1", variableMap.get("retryCooldown"));
+        assertEquals("10", variableMap.get("retryCooldown"));
 
 
         while (variables.get("failedAttempts") == null || variables.get("failedAttempts") != null
@@ -457,7 +477,7 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
                 < Integer.parseInt(variableMap.get("retryCount"))) {
             // get prev start time
             Date beforeErrorCreateTime =
-                    taskService.createTaskQuery().taskName("Pay Flight").singleResult().getCreateTime();
+                    new Date();
 
             // trigger error on non-vital task
             taskService.handleBpmnError(payFlightTask.getId(), "errorCode");
@@ -475,6 +495,9 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         // trigger error on retry task that exceeds retry count
         taskService.handleBpmnError(payFlightTask.getId(), "errorCode");
 
+        // verifies that error has occurred
+        assertThat(loggingRule.getFilteredLog(BPMN_BEHAVIOR_LOGGER, "Execution is ended (none end event semantics)").size()).isEqualTo(1);
+        assertThat(loggingRule.getFilteredLog(BPMN_BEHAVIOR_LOGGER, "no catching boundary event was defined").size()).isEqualTo(1);
 
         /**
          * Instance is ended, as missing boundary error catch event leads to ending of execution see

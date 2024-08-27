@@ -21,7 +21,7 @@
 						<camunda:map>
 							<camunda:entry key="isRetryTask">true</camunda:entry>
 							<camunda:entry key="retryCount">3</camunda:entry>
-							<camunda:entry key="retryCooldown">1</camunda:entry>
+							<camunda:entry key="retryCooldown">10</camunda:entry>
 						</camunda:map>
 					</camunda:inputParameter>
 				</camunda:inputOutput>

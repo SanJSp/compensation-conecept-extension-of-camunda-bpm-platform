@@ -1,40 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1cx6mvv" targetNamespace="http://bpmn.io/schema/bpmn">
 <bpmn:process id="bookingProcess" name="Booking Process" isExecutable="true">
-	<bpmn:startEvent id="Event_09xpz26">
+	<bpmn:startEvent id="startEvent">
 		<bpmn:outgoing>Flow_1rik7bv</bpmn:outgoing>
 	</bpmn:startEvent>
-	<bpmn:userTask id="Activity_0nafnte" name="Book Flight">
+	<bpmn:userTask id="bookFlight" name="Book Flight">
 		<bpmn:incoming>Flow_1rik7bv</bpmn:incoming>
 		<bpmn:outgoing>Flow_1n9itos</bpmn:outgoing>
 	</bpmn:userTask>
-	<bpmn:sequenceFlow id="Flow_1rik7bv" sourceRef="Event_09xpz26" targetRef="Activity_0nafnte"/>
-	<bpmn:userTask id="Activity_1bd4lf8" name="Pay Booking">
+	<bpmn:sequenceFlow id="Flow_1rik7bv" sourceRef="startEvent" targetRef="bookFlight"/>
+	<bpmn:userTask id="payBooking" name="Pay Booking">
 		<bpmn:incoming>Flow_087ljam</bpmn:incoming>
 		<bpmn:outgoing>Flow_01jpmht</bpmn:outgoing>
 	</bpmn:userTask>
-	<bpmn:endEvent id="Event_0byh6jg">
+	<bpmn:endEvent id="endEvent">
 		<bpmn:incoming>Flow_01jpmht</bpmn:incoming>
 	</bpmn:endEvent>
-	<bpmn:sequenceFlow id="Flow_01jpmht" sourceRef="Activity_1bd4lf8" targetRef="Event_0byh6jg"/>
-	<bpmn:boundaryEvent id="Event_1rpmqkk" attachedToRef="Activity_1bd4lf8">
+	<bpmn:sequenceFlow id="Flow_01jpmht" sourceRef="payBooking" targetRef="endEvent"/>
+	<bpmn:boundaryEvent id="errorEventPayBooking" attachedToRef="payBooking">
 		<bpmn:outgoing>Flow_0130jtz</bpmn:outgoing>
 		<bpmn:errorEventDefinition id="ErrorEventDefinition_1r66zrt"/>
 	</bpmn:boundaryEvent>
-	<bpmn:sequenceFlow id="Flow_0130jtz" sourceRef="Event_1rpmqkk" targetRef="Event_0ey50cc"/>
-	<bpmn:endEvent id="Event_0ey50cc">
+	<bpmn:sequenceFlow id="Flow_0130jtz" sourceRef="errorEventPayBooking" targetRef="compensationThrowEndEvent"/>
+	<bpmn:endEvent id="compensationThrowEndEvent">
 		<bpmn:incoming>Flow_0130jtz</bpmn:incoming>
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_13ku2le"/>
 	</bpmn:endEvent>
-	<bpmn:boundaryEvent id="Event_02pbh29" attachedToRef="Activity_0nafnte">
+	<bpmn:boundaryEvent id="Event_02pbh29" attachedToRef="bookFlight">
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_18p7ufd"/>
 	</bpmn:boundaryEvent>
-	<bpmn:userTask id="Activity_0bmmawi" name="Cancel Flight" isForCompensation="true"/>
-	<bpmn:sequenceFlow id="Flow_1g394zi" sourceRef="Gateway_059wpqy" targetRef="Activity_1g1z1vs">
+	<bpmn:userTask id="cancelFlight" name="Cancel Flight" isForCompensation="true"/>
+	<bpmn:sequenceFlow id="Flow_1g394zi" sourceRef="gatewaySplit" targetRef="bookCar">
 		<bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${"1isAPGateway" == true}</bpmn:conditionExpression>
 	</bpmn:sequenceFlow>
-	<bpmn:sequenceFlow id="Flow_087ljam" sourceRef="Gateway_0d7v2i4" targetRef="Activity_1bd4lf8"/>
-	<bpmn:boundaryEvent id="Event_0nn7ukb" attachedToRef="Activity_1fuxswn">
+	<bpmn:sequenceFlow id="Flow_087ljam" sourceRef="gatewayJoin" targetRef="payBooking"/>
+	<bpmn:boundaryEvent id="Event_0nn7ukb" attachedToRef="reserveEquipment">
 		<bpmn:outgoing>Flow_0v06xni</bpmn:outgoing>
 		<bpmn:errorEventDefinition id="ErrorEventDefinition_1omcr04"/>
 	</bpmn:boundaryEvent>
@@ -43,11 +43,11 @@
 		<bpmn:incoming>Flow_0v06xni</bpmn:incoming>
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_1vc0tvi"/>
 	</bpmn:endEvent>
-	<bpmn:boundaryEvent id="Event_1xfrzbj" attachedToRef="Activity_1vvlclv">
+	<bpmn:boundaryEvent id="Event_1xfrzbj" attachedToRef="bookSeatReservations">
 		<bpmn:outgoing>Flow_0fv5vxf</bpmn:outgoing>
 		<bpmn:errorEventDefinition id="ErrorEventDefinition_0ttu4lu"/>
 	</bpmn:boundaryEvent>
-	<bpmn:sequenceFlow id="Flow_1xrh1ir" sourceRef="Gateway_059wpqy" targetRef="Activity_1qp9cal">
+	<bpmn:sequenceFlow id="Flow_1xrh1ir" sourceRef="gatewaySplit" targetRef="bookTrain">
 		<bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${"2isAPGateway" == true}</bpmn:conditionExpression>
 	</bpmn:sequenceFlow>
 	<bpmn:sequenceFlow id="Flow_0fv5vxf" sourceRef="Event_1xfrzbj" targetRef="Event_152iwhu"/>
@@ -55,8 +55,8 @@
 		<bpmn:incoming>Flow_0fv5vxf</bpmn:incoming>
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_1xobfkz"/>
 	</bpmn:endEvent>
-	<bpmn:sequenceFlow id="Flow_1yk143e" sourceRef="Gateway_059wpqy" targetRef="Gateway_0d7v2i4"/>
-	<bpmn:userTask id="Activity_0yugs6l" name="Savepoint">
+	<bpmn:sequenceFlow id="Flow_1yk143e" sourceRef="gatewaySplit" targetRef="gatewayJoin"/>
+	<bpmn:userTask id="savepoint" name="Savepoint">
 		<bpmn:extensionElements>
 			<camunda:inputOutput>
 				<camunda:inputParameter name="isAPSavepoint">true</camunda:inputParameter>
@@ -65,65 +65,65 @@
 		<bpmn:incoming>Flow_1n9itos</bpmn:incoming>
 		<bpmn:outgoing>Flow_0qwyei7</bpmn:outgoing>
 	</bpmn:userTask>
-	<bpmn:sequenceFlow id="Flow_1n9itos" sourceRef="Activity_0nafnte" targetRef="Activity_0yugs6l"/>
-	<bpmn:sequenceFlow id="Flow_0qwyei7" sourceRef="Activity_0yugs6l" targetRef="Gateway_059wpqy"/>
-	<bpmn:exclusiveGateway id="Gateway_059wpqy" default="Flow_1yk143e">
+	<bpmn:sequenceFlow id="Flow_1n9itos" sourceRef="bookFlight" targetRef="savepoint"/>
+	<bpmn:sequenceFlow id="Flow_0qwyei7" sourceRef="savepoint" targetRef="gatewaySplit"/>
+	<bpmn:exclusiveGateway id="gatewaySplit" default="Flow_1yk143e">
 		<bpmn:incoming>Flow_0qwyei7</bpmn:incoming>
 		<bpmn:outgoing>Flow_1g394zi</bpmn:outgoing>
 		<bpmn:outgoing>Flow_1xrh1ir</bpmn:outgoing>
 		<bpmn:outgoing>Flow_1yk143e</bpmn:outgoing>
 	</bpmn:exclusiveGateway>
-	<bpmn:exclusiveGateway id="Gateway_0d7v2i4">
+	<bpmn:exclusiveGateway id="gatewayJoin">
 		<bpmn:incoming>Flow_1yk143e</bpmn:incoming>
 		<bpmn:incoming>Flow_1yxqu6q</bpmn:incoming>
 		<bpmn:incoming>Flow_0acjrxh</bpmn:incoming>
 		<bpmn:outgoing>Flow_087ljam</bpmn:outgoing>
 	</bpmn:exclusiveGateway>
-	<bpmn:boundaryEvent id="Event_0qthwk5" attachedToRef="Activity_0yugs6l">
+	<bpmn:boundaryEvent id="Event_0qthwk5" attachedToRef="savepoint">
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_0vkdm1k"/>
 	</bpmn:boundaryEvent>
-	<bpmn:userTask id="Activity_1uu24r9" name="CompSavepoint" isForCompensation="true"/>
-	<bpmn:userTask id="Activity_1g1z1vs" name="TaskA">
+	<bpmn:userTask id="compSavepoint" name="CompSavepoint" isForCompensation="true"/>
+	<bpmn:userTask id="bookCar" name="Book Car">
 		<bpmn:incoming>Flow_1g394zi</bpmn:incoming>
 		<bpmn:outgoing>Flow_172fugq</bpmn:outgoing>
 	</bpmn:userTask>
-	<bpmn:userTask id="Activity_1fuxswn" name="TaskB">
+	<bpmn:userTask id="reserveEquipment" name="Reserve Equipment">
 		<bpmn:incoming>Flow_172fugq</bpmn:incoming>
 		<bpmn:outgoing>Flow_1yxqu6q</bpmn:outgoing>
 	</bpmn:userTask>
-	<bpmn:userTask id="Activity_1h90nr9" name="CompA" isForCompensation="true"/>
-	<bpmn:boundaryEvent id="Event_1hprvt6" attachedToRef="Activity_1g1z1vs">
+	<bpmn:userTask id="cancelCar" name="Cancel Car" isForCompensation="true"/>
+	<bpmn:boundaryEvent id="Event_1hprvt6" attachedToRef="bookCar">
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_01cuun8"/>
 	</bpmn:boundaryEvent>
-	<bpmn:sequenceFlow id="Flow_172fugq" sourceRef="Activity_1g1z1vs" targetRef="Activity_1fuxswn"/>
-	<bpmn:sequenceFlow id="Flow_1yxqu6q" sourceRef="Activity_1fuxswn" targetRef="Gateway_0d7v2i4"/>
-	<bpmn:boundaryEvent id="Event_0uajqc6" attachedToRef="Activity_1qp9cal">
+	<bpmn:sequenceFlow id="Flow_172fugq" sourceRef="bookCar" targetRef="reserveEquipment"/>
+	<bpmn:sequenceFlow id="Flow_1yxqu6q" sourceRef="reserveEquipment" targetRef="gatewayJoin"/>
+	<bpmn:boundaryEvent id="Event_0uajqc6" attachedToRef="bookTrain">
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_1m7hf5z"/>
 	</bpmn:boundaryEvent>
-	<bpmn:userTask id="Activity_1gvzepa" name="CompC" isForCompensation="true"/>
-	<bpmn:userTask id="Activity_1vvlclv" name="TaskD">
+	<bpmn:userTask id="CancelTrain" name="Cancel Train" isForCompensation="true"/>
+	<bpmn:userTask id="bookSeatReservations" name="Book Seat Reservations">
 		<bpmn:incoming>Flow_1c0ax79</bpmn:incoming>
 		<bpmn:outgoing>Flow_0acjrxh</bpmn:outgoing>
 	</bpmn:userTask>
-	<bpmn:userTask id="Activity_1qp9cal" name="TaskC">
+	<bpmn:userTask id="bookTrain" name="Book Train">
 		<bpmn:incoming>Flow_1xrh1ir</bpmn:incoming>
 		<bpmn:outgoing>Flow_1c0ax79</bpmn:outgoing>
 	</bpmn:userTask>
-	<bpmn:sequenceFlow id="Flow_1c0ax79" sourceRef="Activity_1qp9cal" targetRef="Activity_1vvlclv"/>
-	<bpmn:sequenceFlow id="Flow_0acjrxh" sourceRef="Activity_1vvlclv" targetRef="Gateway_0d7v2i4"/>
-	<bpmn:boundaryEvent id="Event_03pah4k" attachedToRef="Activity_1vvlclv">
+	<bpmn:sequenceFlow id="Flow_1c0ax79" sourceRef="bookTrain" targetRef="bookSeatReservations"/>
+	<bpmn:sequenceFlow id="Flow_0acjrxh" sourceRef="bookSeatReservations" targetRef="gatewayJoin"/>
+	<bpmn:boundaryEvent id="Event_03pah4k" attachedToRef="bookSeatReservations">
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_0q9ph82"/>
 	</bpmn:boundaryEvent>
-	<bpmn:userTask id="Activity_19w51j3" name="CompD" isForCompensation="true"/>
-	<bpmn:userTask id="Activity_0tt5hwm" name="CompB" isForCompensation="true"/>
-	<bpmn:boundaryEvent id="Event_1r4p44g" attachedToRef="Activity_1fuxswn">
+	<bpmn:userTask id="cancelReservation" name="Cancel Reservation" isForCompensation="true"/>
+	<bpmn:userTask id="cancelEquipment" name="Cancel Equipment" isForCompensation="true"/>
+	<bpmn:boundaryEvent id="Event_1r4p44g" attachedToRef="reserveEquipment">
 		<bpmn:compensateEventDefinition id="CompensateEventDefinition_08catxp"/>
 	</bpmn:boundaryEvent>
-	<bpmn:association id="Association_1mxemfb" associationDirection="One" sourceRef="Event_02pbh29" targetRef="Activity_0bmmawi"/>
-	<bpmn:association id="Association_03yuuyh" associationDirection="One" sourceRef="Event_0qthwk5" targetRef="Activity_1uu24r9"/>
-	<bpmn:association id="Association_0i8codf" associationDirection="One" sourceRef="Event_1hprvt6" targetRef="Activity_1h90nr9"/>
-	<bpmn:association id="Association_0rnx9t1" associationDirection="One" sourceRef="Event_0uajqc6" targetRef="Activity_1gvzepa"/>
-	<bpmn:association id="Association_04rz8xh" associationDirection="One" sourceRef="Event_03pah4k" targetRef="Activity_19w51j3"/>
-	<bpmn:association id="Association_00tpo3z" associationDirection="One" sourceRef="Event_1r4p44g" targetRef="Activity_0tt5hwm"/>
+	<bpmn:association id="Association_1mxemfb" associationDirection="One" sourceRef="Event_02pbh29" targetRef="cancelFlight"/>
+	<bpmn:association id="Association_03yuuyh" associationDirection="One" sourceRef="Event_0qthwk5" targetRef="compSavepoint"/>
+	<bpmn:association id="Association_0i8codf" associationDirection="One" sourceRef="Event_1hprvt6" targetRef="cancelCar"/>
+	<bpmn:association id="Association_0rnx9t1" associationDirection="One" sourceRef="Event_0uajqc6" targetRef="CancelTrain"/>
+	<bpmn:association id="Association_04rz8xh" associationDirection="One" sourceRef="Event_03pah4k" targetRef="cancelReservation"/>
+	<bpmn:association id="Association_00tpo3z" associationDirection="One" sourceRef="Event_1r4p44g" targetRef="cancelEquipment"/>
 </bpmn:process>
 </bpmn:definitions>
