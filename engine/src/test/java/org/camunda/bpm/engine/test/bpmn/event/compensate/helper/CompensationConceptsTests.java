@@ -510,4 +510,27 @@ public class CompensationConceptsTests extends PluggableProcessEngineTest {
         assertNotNull(payFlightTaskHistory.getEndTime());
         testRule.assertProcessEnded(processInstanceId);
     }
+
+    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.shallowSubprocessCompensationTest" +
+            ".bpmn20.xml")
+    @Test
+    public void shallowSubprocessCompensationTest() {
+        // This test verifies, that a subprocess having a boundary compensation catch event triggers the shallow
+        // compensation task.
+        String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
+        completeTask("Task A");
+        completeTask("Shallow Comp A");
+        testRule.assertProcessEnded(processInstanceId);
+    }
+
+    @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensationConceptsTest.deepSubprocessCompensationTest" +
+            ".bpmn20.xml")
+    @Test
+    public void deepSubprocessCompensationTest() {
+        // This test verifies, that a subprocess without a boundary compensation catch event is deeply compensated.
+        String processInstanceId = runtimeService.startProcessInstanceByKey("bookingProcess").getId();
+        completeTask("Task A");
+        completeTask("Comp A");
+        testRule.assertProcessEnded(processInstanceId);
+    }
 }
