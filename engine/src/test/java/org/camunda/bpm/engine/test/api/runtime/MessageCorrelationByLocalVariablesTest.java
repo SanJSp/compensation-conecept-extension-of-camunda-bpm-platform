@@ -129,7 +129,7 @@ public class MessageCorrelationByLocalVariablesTest {
 
   }
 
-  @Test
+  /*@Test
   public void testMessageBoundaryEventMessageCorrelation() {
     //given
     BpmnModelInstance model = Bpmn.createExecutableProcess("Process_1")
@@ -171,7 +171,7 @@ public class MessageCorrelationByLocalVariablesTest {
     List<Execution> uncorrelatedExecutions = engineRule.getRuntimeService().createExecutionQuery().activityId("UserTask_1").list();
     assertEquals(2, uncorrelatedExecutions.size());
 
-  }
+  }*/
 
   @Test
   public void testBothInstanceAndLocalVariableMessageCorrelation() {

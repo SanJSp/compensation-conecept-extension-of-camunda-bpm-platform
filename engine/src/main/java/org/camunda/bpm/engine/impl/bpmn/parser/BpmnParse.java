@@ -154,6 +154,7 @@ import org.camunda.bpm.engine.impl.util.DecisionEvaluationUtil;
 import org.camunda.bpm.engine.impl.util.ReflectUtil;
 import org.camunda.bpm.engine.impl.util.ScriptUtil;
 import org.camunda.bpm.engine.impl.util.StringUtil;
+import org.camunda.bpm.engine.impl.util.xml.Attribute;
 import org.camunda.bpm.engine.impl.util.xml.Element;
 import org.camunda.bpm.engine.impl.util.xml.Namespace;
 import org.camunda.bpm.engine.impl.util.xml.Parse;
@@ -2800,6 +2801,24 @@ public class BpmnParse extends Parse {
 
     parseProperties(userTaskElement, activity);
     parseExecutionListenersOnScope(userTaskElement, activity);
+
+    Element extensionElements = userTaskElement.element("extensionElements");
+    if (extensionElements != null) {
+      Element inputOutput = extensionElements.element("inputOutput");
+      if (inputOutput != null) {
+        Element inputParameter = inputOutput.element("inputParameter");
+        if (inputParameter != null) {
+          String nameAttribute = inputParameter.attribute("name");
+          if ("isSavepoint".equals(nameAttribute)) {
+            activity.setProperty("isSavepoint", "true");
+          }
+          if ("isAPSavepoint".equals(nameAttribute)) {
+            activity.setProperty("isAPSavepoint", "true");
+          }
+        }
+      }
+    }
+
 
     for (BpmnParseListener parseListener : parseListeners) {
       parseListener.parseUserTask(userTaskElement, scope, activity);

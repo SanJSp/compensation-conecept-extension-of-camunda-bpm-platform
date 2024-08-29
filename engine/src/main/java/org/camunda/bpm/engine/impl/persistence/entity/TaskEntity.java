@@ -31,6 +31,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngineException;
@@ -1771,6 +1773,36 @@ public class TaskEntity extends AbstractVariableScope implements Task, DelegateT
     } else {
       bpmnError = new BpmnError(errorCode);
     }
+
+    if (activityExecution.getVariable("isVital") != null && activityExecution.getVariable("isVital").equals("false")){
+      this.complete();
+      return;
+    }
+
+    if (activityExecution.getVariable("isRetryTask") != null) {
+      TreeMap<String, String> variableMap = (TreeMap<String, String>) activityExecution.getVariable("isRetryTask");
+      String cooldown = variableMap.get("retryCooldown");
+      String retryCount = variableMap.get("retryCount");
+      int maxRetries = Integer.parseInt(retryCount);
+
+      int failedAttempts = 0;
+      if (activityExecution.getVariable("failedAttempts") != null) {
+        failedAttempts = Integer.parseInt((String) activityExecution.getVariable("failedAttempts"));
+      }
+
+      if (failedAttempts < maxRetries) {
+        try {
+          TimeUnit.SECONDS.sleep(Integer.parseInt(cooldown));
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+        activityExecution.setVariable("failedAttempts", String.valueOf(failedAttempts + 1));
+        this.setCreateTime(new Date());
+        return;
+      }
+      // else: do nothing and continue error handling
+    }
+
     try {
       if (variables != null && !variables.isEmpty()) {
         activityExecution.setVariables(variables);

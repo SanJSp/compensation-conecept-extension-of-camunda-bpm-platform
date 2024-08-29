@@ -18,12 +18,15 @@ package org.camunda.bpm.engine.impl.bpmn.behavior;
 
 import java.util.List;
 
+import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
 import org.camunda.bpm.engine.impl.bpmn.parser.CompensateEventDefinition;
 import org.camunda.bpm.engine.impl.persistence.entity.EventSubscriptionEntity;
 import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
 import org.camunda.bpm.engine.impl.pvm.delegate.ActivityExecution;
 import org.camunda.bpm.engine.impl.pvm.runtime.PvmExecutionImpl;
+import org.camunda.bpm.engine.runtime.ProcessInstance;
+import org.camunda.bpm.engine.runtime.ProcessInstanceQuery;
 
 /**
  * Behavior for a compensation end event.
@@ -51,7 +54,26 @@ public class CompensationEventActivityBehavior extends FlowNodeActivityBehavior 
       // async (waitForCompletion=false in bpmn) is not supported
       CompensationUtil.throwCompensationEvent(eventSubscriptions, execution, false);
     }
+    if(CompensationUtil.getSavepointActivityId() != null && !CompensationUtil.isFlagSavepointIrrelevant()){
+      RuntimeService runtimeService = execution.getProcessEngineServices().getRuntimeService();
+      String processInstanceId = runtimeService.createProcessInstanceQuery().singleResult().getId();
+      runtimeService.createModification(execution.getProcessDefinitionId())
+              .startAfterActivity(CompensationUtil.getSavepointActivityId())
+              .processInstanceIds(processInstanceId)
+              .execute();
+      // AP gateways disable the savepoint in the join gateway. A savepoint by itself, can only be disabled, when it
+      // has finished executing. This line leads to the savepoint being only executed once, or much rather a savepoint
+      // in a process instance being executed only once. To support multiple savepoints, one could collect
+      // successfully executed savepoints in a map to identify already executed savepoints as relevant/irrelevant. This
+      // furthermore requires an algorithm to correctly reconstruct the savepoints based on completion time, to always
+      // mark the correct one as irrelevant.
+      if(!CompensationUtil.isFlagApSavepoint()) {
+        CompensationUtil.setFlagSavepointIrrelevant(true);
+        CompensationUtil.setSavepointActivityId(null);
+      }
+    }
   }
+
 
   protected List<EventSubscriptionEntity> collectEventSubscriptions(ActivityExecution execution) {
     final String activityRef = compensateEventDefinition.getActivityRef();

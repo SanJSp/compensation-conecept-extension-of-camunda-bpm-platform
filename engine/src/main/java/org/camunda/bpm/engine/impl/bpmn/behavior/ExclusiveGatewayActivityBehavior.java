@@ -23,6 +23,7 @@ import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.bpmn.parser.BpmnParse;
 import org.camunda.bpm.engine.impl.pvm.PvmTransition;
 import org.camunda.bpm.engine.impl.pvm.delegate.ActivityExecution;
+import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
 
 
 /**
@@ -34,6 +35,8 @@ import org.camunda.bpm.engine.impl.pvm.delegate.ActivityExecution;
 public class ExclusiveGatewayActivityBehavior extends GatewayActivityBehavior {
 
   protected static BpmnBehaviorLogger LOG = ProcessEngineLogger.BPMN_BEHAVIOR_LOGGER;
+
+  private int instanceExecutionCount = 0;
 
   /**
    * The default behaviour of BPMN, taking every outgoing sequence flow
@@ -50,7 +53,7 @@ public class ExclusiveGatewayActivityBehavior extends GatewayActivityBehavior {
    */
   @Override
   public void doLeave(ActivityExecution execution) {
-
+    instanceExecutionCount++;
     LOG.leavingActivity(execution.getActivity().getId());
 
     PvmTransition outgoingSeqFlow = null;
@@ -60,12 +63,29 @@ public class ExclusiveGatewayActivityBehavior extends GatewayActivityBehavior {
       PvmTransition seqFlow = transitionIterator.next();
 
       Condition condition = (Condition) seqFlow.getProperty(BpmnParse.PROPERTYNAME_CONDITION);
-      if ( (condition == null && (defaultSequenceFlow == null || !defaultSequenceFlow.equals(seqFlow.getId())) )
-              || (condition != null && condition.evaluate(execution)) ) {
+      if(condition != null && condition.getExpressionText().contains("APGateway")) {
+        int alternativePathIndex = Integer.parseInt(condition.getExpressionText().replaceAll("[^0-9]", ""));
+        if(alternativePathIndex == instanceExecutionCount) {
+          LOG.outgoingSequenceFlowSelected(seqFlow.getId());
+          outgoingSeqFlow = seqFlow;
+        }
+      } else {
+        if ( (condition == null && (defaultSequenceFlow == null || !defaultSequenceFlow.equals(seqFlow.getId())) )
+                || (condition != null && condition.evaluate(execution)) ) {
 
-        LOG.outgoingSequenceFlowSelected(seqFlow.getId());
-        outgoingSeqFlow = seqFlow;
+          LOG.outgoingSequenceFlowSelected(seqFlow.getId());
+          outgoingSeqFlow = seqFlow;
+        }
       }
+    }
+
+    // is join gateway?
+    if(execution.getActivity().getOutgoingTransitions().size() == 1 && execution.getActivity().getIncomingTransitions().size() > 1){
+      // reset instance variable to count executions of AP gateway
+      CompensationUtil.setFlagSavepointIrrelevant(true);
+      CompensationUtil.setFlagApSavepoint(false);
+      CompensationUtil.setSavepointActivityId(null);
+      instanceExecutionCount = 0;
     }
 
     if (outgoingSeqFlow != null) {

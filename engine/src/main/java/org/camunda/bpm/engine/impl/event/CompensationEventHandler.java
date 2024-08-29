@@ -20,6 +20,7 @@ package org.camunda.bpm.engine.impl.event;
 import java.util.List;
 
 import org.camunda.bpm.engine.ProcessEngineException;
+import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.persistence.entity.EventSubscriptionEntity;
@@ -62,11 +63,8 @@ public class CompensationEventHandler implements EventHandler {
       // descend into scope:
       List<EventSubscriptionEntity> eventsForThisScope = compensatingExecution.getCompensateEventSubscriptions();
       CompensationUtil.throwCompensationEvent(eventsForThisScope, compensatingExecution, false);
-
     } else {
       try {
-
-
         if (compensationHandler.isSubProcessScope() && compensationHandler.isTriggeredByEvent()) {
           compensatingExecution.executeActivity(compensationHandler);
         }
@@ -76,8 +74,6 @@ public class CompensationEventHandler implements EventHandler {
           compensatingExecution.setActivity(compensationHandler);
           compensatingExecution.performOperation(PvmAtomicOperation.ACTIVITY_START);
         }
-
-
       } catch (Exception e) {
         throw new ProcessEngineException("Error while handling compensation event " + eventSubscription, e);
       }

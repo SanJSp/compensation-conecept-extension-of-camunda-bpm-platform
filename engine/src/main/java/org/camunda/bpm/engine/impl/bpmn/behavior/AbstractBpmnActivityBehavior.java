@@ -22,6 +22,7 @@ import java.util.concurrent.Callable;
 
 import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.bpmn.helper.BpmnExceptionHandler;
+import org.camunda.bpm.engine.impl.bpmn.helper.CompensationUtil;
 import org.camunda.bpm.engine.impl.bpmn.helper.ErrorPropagationException;
 import org.camunda.bpm.engine.impl.event.EventType;
 import org.camunda.bpm.engine.impl.persistence.entity.EventSubscriptionEntity;
@@ -57,6 +58,10 @@ public class AbstractBpmnActivityBehavior extends FlowNodeActivityBehavior {
 
     // subscription for compensation event subprocess is already created
     if(compensationHandler != null && !isCompensationEventSubprocess(compensationHandler)) {
+      // add savepoint to be executed instead of compensating task for re-execution
+      if("true".equals(currentActivity.getProperty("isSavepoint")) || "true".equals(currentActivity.getProperty("isAPSavepoint"))){
+        CompensationUtil.setSavepointActivityId(((ActivityImpl) currentActivity).getActivityId());
+      }
       createCompensateEventSubscription(execution, compensationHandler);
     }
     super.doLeave(execution);
@@ -70,6 +75,13 @@ public class AbstractBpmnActivityBehavior extends FlowNodeActivityBehavior {
     // the compensate event subscription is created at subprocess or miBody of the the current activity
     PvmActivity currentActivity = execution.getActivity();
     ActivityExecution scopeExecution = execution.findExecutionForFlowScope(currentActivity.getFlowScope());
+
+    if("true".equals(currentActivity.getProperty("isSavepoint"))  || "true".equals(currentActivity.getProperty("isAPSavepoint"))){
+      compensationHandler.setProperty("isSavepointCompanion", "true");
+      if("true".equals(currentActivity.getProperty("isAPSavepoint"))){
+        CompensationUtil.setFlagApSavepoint(true);
+      }
+    }
 
     EventSubscriptionEntity.createAndInsert((ExecutionEntity) scopeExecution, EventType.COMPENSATE, compensationHandler);
   }

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1cx6mvv" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:process id="bookingProcess" name="Booking Process" isExecutable="true">
+	<bpmn:startEvent id="StartEvent_1hh3ptg">
+		<bpmn:outgoing>Flow_14kxqe1</bpmn:outgoing>
+	</bpmn:startEvent>
+	<bpmn:subProcess id="Activity_0hdvnpu">
+		<bpmn:incoming>Flow_14kxqe1</bpmn:incoming>
+		<bpmn:outgoing>Flow_1tw7qgk</bpmn:outgoing>
+		<bpmn:startEvent id="Event_1u0ve26">
+			<bpmn:outgoing>Flow_00lwlvi</bpmn:outgoing>
+		</bpmn:startEvent>
+		<bpmn:userTask id="Activity_0zvjr5p" name="Task A">
+			<bpmn:incoming>Flow_00lwlvi</bpmn:incoming>
+			<bpmn:outgoing>Flow_1i3ju7c</bpmn:outgoing>
+		</bpmn:userTask>
+		<bpmn:sequenceFlow id="Flow_00lwlvi" sourceRef="Event_1u0ve26" targetRef="Activity_0zvjr5p"/>
+		<bpmn:endEvent id="Event_03ojsjp">
+			<bpmn:incoming>Flow_1i3ju7c</bpmn:incoming>
+		</bpmn:endEvent>
+		<bpmn:sequenceFlow id="Flow_1i3ju7c" sourceRef="Activity_0zvjr5p" targetRef="Event_03ojsjp"/>
+		<bpmn:boundaryEvent id="Event_0hfyhv7" attachedToRef="Activity_0zvjr5p">
+			<bpmn:compensateEventDefinition id="CompensateEventDefinition_198i51r"/>
+		</bpmn:boundaryEvent>
+	</bpmn:subProcess>
+	<bpmn:sequenceFlow id="Flow_14kxqe1" sourceRef="StartEvent_1hh3ptg" targetRef="Activity_0hdvnpu"/>
+	<bpmn:endEvent id="Event_0e2rnbh">
+		<bpmn:incoming>Flow_1tw7qgk</bpmn:incoming>
+		<bpmn:compensateEventDefinition id="CompensateEventDefinition_0gjfdjf"/>
+	</bpmn:endEvent>
+	<bpmn:sequenceFlow id="Flow_1tw7qgk" sourceRef="Activity_0hdvnpu" targetRef="Event_0e2rnbh"/>
+	<bpmn:boundaryEvent id="Event_1hmfvp0" attachedToRef="Activity_0hdvnpu">
+		<bpmn:compensateEventDefinition id="CompensateEventDefinition_1a6usrb"/>
+	</bpmn:boundaryEvent>
+	<bpmn:userTask id="Activity_00ureio" name="Shallow Comp A" isForCompensation="true"/>
+	<bpmn:association id="Association_0sejk4b" associationDirection="One" sourceRef="Event_1hmfvp0" targetRef="Activity_00ureio"/>
+</bpmn:process>
+</bpmn:definitions>

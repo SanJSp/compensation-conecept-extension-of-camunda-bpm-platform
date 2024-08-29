@@ -49,31 +49,17 @@ public class CompensationUtil {
    */
   public final static String SIGNAL_COMPENSATION_DONE = "compensationDone";
 
+  private static boolean FLAG_SAVEPOINT_REACHED = false;
+  private static boolean FLAG_SAVEPOINT_IRRELEVANT = false;
+  private static boolean FLAG_AP_SAVEPOINT = false;
+  private static String SAVEPOINT_ACTIVITY_ID = null;
+
+
+
   /**
    * we create a separate execution for each compensation handler invocation.
    */
   public static void throwCompensationEvent(List<EventSubscriptionEntity> eventSubscriptions, ActivityExecution execution, boolean async) {
-
-    // first spawn the compensating executions
-    for (EventSubscriptionEntity eventSubscription : eventSubscriptions) {
-      // check whether compensating execution is already created
-      // (which is the case when compensating an embedded subprocess,
-      // where the compensating execution is created when leaving the subprocess
-      // and holds snapshot data).
-      ExecutionEntity compensatingExecution = getCompensatingExecution(eventSubscription);
-      if (compensatingExecution != null) {
-        if (compensatingExecution.getParent() != execution) {
-          // move the compensating execution under this execution if this is not the case yet
-          compensatingExecution.setParent((PvmExecutionImpl) execution);
-        }
-
-        compensatingExecution.setEventScope(false);
-      } else {
-        compensatingExecution = (ExecutionEntity) execution.createExecution();
-        eventSubscription.setConfiguration(compensatingExecution.getId());
-      }
-      compensatingExecution.setConcurrent(true);
-    }
 
     // signal compensation events in REVERSE order of their 'created' timestamp
     Collections.sort(eventSubscriptions, new Comparator<EventSubscriptionEntity>() {
@@ -83,9 +69,56 @@ public class CompensationUtil {
       }
     });
 
-    for (EventSubscriptionEntity compensateEventSubscriptionEntity : eventSubscriptions) {
-      compensateEventSubscriptionEntity.eventReceived(null, async);
+    // first spawn the compensating executions
+    for (EventSubscriptionEntity eventSubscription : eventSubscriptions) {
+      // check whether compensating execution is already created
+      // (which is the case when compensating an embedded subprocess,
+      // where the compensating execution is created when leaving the subprocess
+      // and holds snapshot data).
+      ExecutionEntity compensatingExecution = getCompensatingExecution(eventSubscription);
+
+      if (compensatingExecution != null) {
+        if (compensatingExecution.getParent() != execution) {
+          // move the compensating execution under this execution if this is not the case yet
+          compensatingExecution.setParent((PvmExecutionImpl) execution);
+        }
+
+        compensatingExecution.setEventScope(false);
+      } else {
+        if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !isFlagSavepointReached()){
+          compensatingExecution = (ExecutionEntity) execution.createExecution();
+          eventSubscription.setConfiguration(compensatingExecution.getId());
+        }
+      }
+      if(!"true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion")) && !isFlagSavepointReached()){
+        compensatingExecution.setConcurrent(true);
+      }
+      if("true".equals(eventSubscription.getActivity().getProperty("isSavepointCompanion"))) {
+        if(!isFlagSavepointIrrelevant()) {
+          setFlagSavepointReached(true);
+        } else {
+          compensatingExecution = (ExecutionEntity) execution.createExecution();
+          eventSubscription.setConfiguration(compensatingExecution.getId());
+          compensatingExecution.setConcurrent(true);
+        }
+      }
     }
+    setFlagSavepointReached(false);
+
+    for (EventSubscriptionEntity compensateEventSubscriptionEntity : eventSubscriptions) {
+      if(!isFlagSavepointReached() || isFlagSavepointIrrelevant()) {
+        if ("true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion"))) {
+          if(!isFlagSavepointIrrelevant()){
+            setFlagSavepointReached(true);
+          }
+        }
+        if (!"true".equals(compensateEventSubscriptionEntity.getActivity().getProperty("isSavepointCompanion")) || !isFlagSavepointReached()) {
+          compensateEventSubscriptionEntity.eventReceived(null, async);
+        }
+      }
+
+    }
+    setFlagSavepointReached(false);
   }
 
   /**
@@ -255,4 +288,42 @@ public class CompensationUtil {
     }
   }
 
+  public static String getSavepointActivityId() {
+    return SAVEPOINT_ACTIVITY_ID;
+  }
+
+  public static void setSavepointActivityId(String savepointActivityId) {
+    SAVEPOINT_ACTIVITY_ID = savepointActivityId;
+  }
+
+  public static boolean isFlagApSavepoint() {
+    return FLAG_AP_SAVEPOINT;
+  }
+
+  public static void setFlagApSavepoint(boolean flagApSavepoint) {
+    FLAG_AP_SAVEPOINT = flagApSavepoint;
+  }
+
+  public static boolean isFlagSavepointIrrelevant() {
+    return FLAG_SAVEPOINT_IRRELEVANT;
+  }
+
+  public static void setFlagSavepointIrrelevant(boolean flagSavepointIrrelevant) {
+    FLAG_SAVEPOINT_IRRELEVANT = flagSavepointIrrelevant;
+  }
+
+  public static boolean isFlagSavepointReached() {
+    return FLAG_SAVEPOINT_REACHED;
+  }
+
+  public static void setFlagSavepointReached(boolean flagSavepointReached) {
+    FLAG_SAVEPOINT_REACHED = flagSavepointReached;
+  }
+
+  public static void resetSavepointFlags() {
+    setFlagSavepointIrrelevant(false);
+    setSavepointActivityId(null);
+    setFlagSavepointReached(false);
+    setFlagApSavepoint(false);
+  }
 }
